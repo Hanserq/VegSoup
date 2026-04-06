@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hanserq</title>
+  <meta name="description" content="Personal website — daily life, work, and everything in between." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* ── Config: change accent color here ───────── */
+    :root {
+      --accent: #8b5cf6;
+      --bg: #0a0a0a;
+      --bg-2: #111111;
+      --border: #1f1f1f;
+      --text-1: #ffffff;
+      --text-2: #a0a0a0;
+      --text-3: #444444;
+      --radius: 12px;
+      --max-w: 680px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Nav ─────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(10,10,10,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 1.25rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-logo span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: inline-block;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.875rem;
+      color: var(--text-2);
+    }
+    .nav-links a:hover { color: var(--text-1); }
+
+    /* ── Main container ──────────────────────────── */
+    main {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 1.25rem 5rem;
+    }
+
+    /* ── Profile hero ────────────────────────────── */
+    .profile-hero {
+      padding: 3rem 0 2.5rem;
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2.5rem;
+    }
+    .avatar {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.25rem;
+      font-weight: 700;
+      overflow: hidden;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-info { flex: 1; }
+    .profile-name {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.2;
+      margin-bottom: 0.3rem;
+    }
+    .profile-tagline {
+      font-size: 0.875rem;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 0.75rem;
+    }
+    .profile-about {
+      font-size: 0.9rem;
+      color: var(--text-2);
+      line-height: 1.65;
+    }
+
+    /* ── Section titles ──────────────────────────── */
+    .section-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Posts feed ──────────────────────────────── */
+    #feed { margin-bottom: 3.5rem; }
+
+    .post {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 1rem;
+      animation: fadeUp 0.35s ease forwards;
+      opacity: 0;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Media */
+    .post-media {
+      position: relative;
+      background: #000;
+      overflow: hidden;
+    }
+    .post-media img,
+    .post-media video {
+      width: 100%;
+      display: block;
+      max-height: 560px;
+      object-fit: cover;
+    }
+    .media-count {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.65);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+    .carousel-controls {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.625rem 0.875rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg-2);
+    }
+    .carousel-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: all 0.2s;
+    }
+    .carousel-dot.active { background: var(--text-1); width: 18px; border-radius: 3px; }
+
+    /* Body */
+    .post-body { padding: 1rem 1.125rem 1.125rem; }
+    .post-caption {
+      font-size: 0.925rem;
+      line-height: 1.6;
+      color: var(--text-1);
+      margin-bottom: 0.625rem;
+      white-space: pre-wrap;
+    }
+    .post-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: 0.75rem;
+    }
+    .tag {
+      font-size: 0.8rem;
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .post-meta {
+      font-size: 0.75rem;
+      color: var(--text-3);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .post-location::before { content: "📍 "; }
+
+    /* ── Portfolio grid ──────────────────────────── */
+    #portfolio { margin-bottom: 3.5rem; }
+
+    .portfolio-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .portfolio-item {
+      aspect-ratio: 1;
+      background: var(--bg-2);
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+    }
+    .portfolio-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s ease;
+    }
+    .portfolio-item:hover img { transform: scale(1.05); }
+    .portfolio-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+      padding: 0.5rem;
+      text-align: center;
+    }
+    .portfolio-item:hover .portfolio-overlay { opacity: 1; }
+    .portfolio-title { font-size: 0.875rem; font-weight: 600; }
+    .portfolio-empty {
+      grid-column: 1/-1;
+      padding: 3rem;
+      text-align: center;
+      color: var(--text-3);
+      font-size: 0.875rem;
+      background: var(--bg-2);
+      border-radius: var(--radius);
+    }
+
+    /* ── Loading / empty states ──────────────────── */
+    .loading {
+      text-align: center;
+      color: var(--text-3);
+      font-size: 0.875rem;
+      padding: 3rem 0;
+    }
+
+    /* ── Footer ──────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 4rem;
+      padding: 2rem 1.25rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-3);
+      max-width: var(--max-w);
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ── Responsive ──────────────────────────────── */
+    @media (max-width: 600px) {
+      .profile-hero { flex-direction: column; align-items: flex-start; gap: 1.25rem; }
+      .portfolio-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo"><span></span> <span id="nav-name">Loading…</span></div>
+    <div class="nav-links">
+      <a href="#feed">Posts</a>
+      <a href="#portfolio">Work</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<main>
+
+  <!-- Profile Hero -->
+  <section class="profile-hero">
+    <div class="avatar" id="avatar-el">…</div>
+    <div class="profile-info">
+      <div class="profile-name" id="profile-name">Loading…</div>
+      <div class="profile-tagline" id="profile-tagline"></div>
+      <div class="profile-about" id="profile-about"></div>
+    </div>
+  </section>
+
+  <!-- Posts Feed -->
+  <section id="feed">
+    <div class="section-title">Posts</div>
+    <div id="posts-container"><div class="loading">Loading posts…</div></div>
+  </section>
+
+  <!-- Portfolio -->
+  <section id="portfolio">
+    <div class="section-title">Work</div>
+    <div id="portfolio-container" class="portfolio-grid">
+      <div class="portfolio-empty">No projects yet.</div>
+    </div>
+  </section>
+
+</main>
+
+<footer id="footer-name">—</footer>
+
+<!-- ═══════════════ SCRIPT ═══════════════ -->
+<script>
+  // ── CONFIG ────────────────────────────────────────
+  // Replace with your Supabase project URL and anon key
+  const SUPABASE_URL  = 'https://jvjtlslmzudczakxqkeu.supabase.co';
+  const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2anRsc2xtenVkY3pha3hxa2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1MDE1NTQsImV4cCI6MjA5MTA3NzU1NH0.YWqq2QmRLMD60CDR2xxqitiUpIdb-qxl7A0O4xi7WVA';
+  // ─────────────────────────────────────────────────
+
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ── PROFILE ───────────────────────────────────────
+  async function loadProfile() {
+    const { data } = await db.from('profile').select('*').eq('id', 1).single();
+    if (!data) return;
+
+    document.title = data.name || 'My Site';
+    document.getElementById('nav-name').textContent   = data.name || '';
+    document.getElementById('profile-name').textContent  = data.name || '';
+    document.getElementById('profile-tagline').textContent = data.tagline || '';
+    document.getElementById('profile-about').textContent  = data.about || '';
+    document.getElementById('footer-name').textContent   = `© ${new Date().getFullYear()} ${data.name || ''}`;
+
+    const avatarEl = document.getElementById('avatar-el');
+    if (data.avatar_url) {
+      avatarEl.innerHTML = `<img src="${data.avatar_url}" alt="${data.name}" />`;
+    } else {
+      avatarEl.textContent = (data.name || 'C')[0].toUpperCase();
+    }
+  }
+
+  // ── POSTS ─────────────────────────────────────────
+  function formatDate(iso) {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function buildCarousel(mediaUrls, mediaTypes, postId) {
+    if (!mediaUrls || mediaUrls.length === 0) return '';
+    const idx = 0;
+    let html = `<div class="post-media" id="media-${postId}">`;
+    // Show first item
+    if (mediaTypes[0] === 'video') {
+      html += `<video src="${mediaUrls[0]}" controls playsinline></video>`;
+    } else {
+      html += `<img src="${mediaUrls[0]}" alt="" loading="lazy" />`;
+    }
+    if (mediaUrls.length > 1) {
+      html += `<span class="media-count">1 / ${mediaUrls.length}</span>`;
+    }
+    html += `</div>`;
+    // Dots
+    if (mediaUrls.length > 1) {
+      html += `<div class="carousel-controls">`;
+      mediaUrls.forEach((_, i) => {
+        html += `<button class="carousel-dot${i === 0 ? ' active' : ''}" onclick="goSlide('${postId}', ${i}, ${JSON.stringify(mediaUrls)}, ${JSON.stringify(mediaTypes)})"></button>`;
+      });
+      html += `</div>`;
+    }
+    return html;
+  }
+
+  window.goSlide = function(postId, idx, urls, types) {
+    const container = document.getElementById(`media-${postId}`);
+    if (!container) return;
+    const isVideo = types[idx] === 'video';
+    const countHTML = urls.length > 1 ? `<span class="media-count">${idx+1} / ${urls.length}</span>` : '';
+    if (isVideo) {
+      container.innerHTML = `<video src="${urls[idx]}" controls playsinline></video>${countHTML}`;
+    } else {
+      container.innerHTML = `<img src="${urls[idx]}" alt="" loading="lazy" />${countHTML}`;
+    }
+    // Update dots
+    const dots = container.nextElementSibling?.querySelectorAll('.carousel-dot');
+    dots?.forEach((d, i) => d.classList.toggle('active', i === idx));
+  };
+
+  async function loadPosts() {
+    const container = document.getElementById('posts-container');
+    let query = db.from('posts').select('*').order('created_at', { ascending: false });
+    // Only show published posts if that column exists
+    const { data: posts, error } = await query;
+    if (error || !posts || posts.length === 0) {
+      container.innerHTML = '<div class="loading">No posts yet.</div>';
+      return;
+    }
+
+    // Filter to published only (if column exists)
+    const visible = posts.filter(p => p.published !== false);
+    if (visible.length === 0) {
+      container.innerHTML = '<div class="loading">No posts yet.</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    visible.forEach((post, i) => {
+      const div = document.createElement('div');
+      div.className = 'post';
+      div.style.animationDelay = `${i * 0.05}s`;
+
+      const mediaHTML  = buildCarousel(post.media_urls || [], post.media_types || [], post.id);
+      const captionHTML = post.caption ? `<div class="post-caption">${post.caption}</div>` : '';
+      const tagsHTML   = (post.tags?.length > 0)
+        ? `<div class="post-tags">${post.tags.map(t => `<span class="tag">#${t}</span>`).join('')}</div>`
+        : '';
+      const locationHTML = post.location ? `<span class="post-location">${post.location}</span>` : '';
+
+      div.innerHTML = `
+        ${mediaHTML}
+        <div class="post-body">
+          ${captionHTML}
+          ${tagsHTML}
+          <div class="post-meta">${formatDate(post.created_at)}${locationHTML ? ' · ' + locationHTML : ''}</div>
+        </div>`;
+      container.appendChild(div);
+    });
+  }
+
+  // ── PORTFOLIO ─────────────────────────────────────
+  async function loadPortfolio() {
+    const { data: projects } = await db.from('portfolio').select('*').order('sort_order');
+    const container = document.getElementById('portfolio-container');
+    if (!projects || projects.length === 0) return;
+    container.innerHTML = '';
+    projects.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'portfolio-item';
+      item.innerHTML = `
+        ${p.image_url ? `<img src="${p.image_url}" alt="${p.title || ''}" loading="lazy" />` : ''}
+        <div class="portfolio-overlay">
+          <div class="portfolio-title">${p.title || ''}</div>
+          ${p.url ? `<a href="${p.url}" target="_blank" style="font-size:0.75rem;color:#a0a0a0;">View →</a>` : ''}
+        </div>`;
+      if (p.url) item.onclick = () => window.open(p.url, '_blank');
+      container.appendChild(item);
+    });
+  }
+
+  // ── INIT ──────────────────────────────────────────
+  Promise.all([loadProfile(), loadPosts(), loadPortfolio().catch(() => {})]);
+</script>
+</body>
+</html>
+

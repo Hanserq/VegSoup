@@ -79,37 +79,79 @@ async function loadProfile() {
   }
 }
 
-// ── POSTS ─────────────────────────────────────────
-async function loadPosts() {
-  const container = document.getElementById('posts-container');
-  const { data: posts, error } = await db.from('posts').select('*').order('created_at', { ascending: false });
-  if (error || !posts || posts.length === 0) {
-    container.innerHTML = '<div class="loading">No posts yet.</div>';
-    return;
-  }
-  
-  // Filter for published = true (falling back to true if null like before)
-  window.allPosts = posts.filter(p => p.published !== false);
-  renderPosts(window.allPosts);
-}
+// ── POSTS (INFINITE SCROLL) ───────────────────────
+let currentAlbumFilter = null;
+let searchQuery = '';
+let postPage = 0;
+const POSTS_PER_PAGE = 7;
+let hasMorePosts = true;
+let fetchingPosts = false;
 
-function renderPosts(posts) {
+async function loadPosts(reset = false) {
+  if (fetchingPosts || (!hasMorePosts && !reset)) return;
+  fetchingPosts = true;
+
   const container = document.getElementById('posts-container');
+  const loader = document.getElementById('infinite-loader');
   const emptySearch = document.getElementById('empty-search');
   
-  if(posts.length === 0) {
-      container.innerHTML = '';
-      emptySearch.style.display = 'block';
-      return;
+  if (reset) {
+    postPage = 0;
+    hasMorePosts = true;
+    container.innerHTML = '';
+    window.allPosts = [];
+    if(emptySearch) emptySearch.style.display = 'none';
+    if(loader) loader.style.display = 'block';
+  }
+
+  let query = db.from('posts').select('*').order('created_at', { ascending: false });
+  if (currentAlbumFilter) {
+      query = query.eq('album_id', currentAlbumFilter);
   }
   
-  emptySearch.style.display = 'none';
-  container.innerHTML = '';
+  const { data: posts, error } = await query.range(postPage * POSTS_PER_PAGE, (postPage + 1) * POSTS_PER_PAGE - 1);
+  fetchingPosts = false;
   
+  if (error || !posts || posts.length === 0) {
+    hasMorePosts = false;
+    if(loader) loader.style.display = 'none';
+    if (reset && emptySearch) {
+         emptySearch.style.display = 'block';
+    }
+    return;
+  }
+
+  hasMorePosts = posts.length === POSTS_PER_PAGE;
+  if(loader) loader.style.display = hasMorePosts ? 'block' : 'none';
+  
+  const publishedPosts = posts.filter(p => p.published !== false);
+  
+  // local text search filter if needed
+  let finalPosts = publishedPosts;
+  if (searchQuery) {
+     finalPosts = publishedPosts.filter(post => {
+        const inC = post.caption?.toLowerCase().includes(searchQuery);
+        const inL = post.location?.toLowerCase().includes(searchQuery);
+        const inT = post.tags?.some(t => t.toLowerCase().includes(searchQuery));
+        return inC || inL || inT;
+     });
+  }
+
+  if (finalPosts.length > 0) {
+      window.allPosts = [...window.allPosts, ...finalPosts];
+      appendPosts(finalPosts, postPage * POSTS_PER_PAGE);
+  } else if (reset && emptySearch) {
+      emptySearch.style.display = 'block';
+  }
+  postPage++;
+}
+
+function appendPosts(posts, offset) {
+  const container = document.getElementById('posts-container');
   posts.forEach((post, i) => {
     const div = document.createElement('div');
     div.className = 'post';
-    div.style.animationDelay = `${i * 0.05}s`;
+    div.style.animationDelay = `${(i % POSTS_PER_PAGE) * 0.05}s`;
     div.onclick = () => openModal(post.id);
 
     const mediaHTML = buildCarousel(post.media_urls || [], post.media_types || [], post.id);
@@ -138,6 +180,17 @@ function renderPosts(posts) {
       </div>`;
     container.appendChild(div);
   });
+}
+
+// Setup Infinite scroll intersection observer
+if (typeof IntersectionObserver !== 'undefined') {
+   const observer = new IntersectionObserver((entries) => {
+       if (entries[0].isIntersecting) {
+           loadPosts();
+       }
+   }, { rootMargin: '400px' });
+   const loader = document.getElementById('infinite-loader');
+   if (loader) observer.observe(loader);
 }
 
 // ── LIKE SYSTEM ───────────────────────────────────
@@ -172,63 +225,102 @@ window.likePost = async function(postId, event) {
 
 // ── SEARCH ────────────────────────────────────────
 document.getElementById('search-input')?.addEventListener('input', (e) => {
-    const q = e.target.value.toLowerCase().trim();
-    if(!q) return renderPosts(window.allPosts); // reset
-    
-    const filtered = window.allPosts.filter(post => {
-        const inCaption = post.caption?.toLowerCase().includes(q);
-        const inLoc = post.location?.toLowerCase().includes(q);
-        const inTags = post.tags?.some(t => t.toLowerCase().includes(q));
-        return inCaption || inLoc || inTags;
-    });
-    renderPosts(filtered);
+    searchQuery = e.target.value.toLowerCase().trim();
+    loadPosts(true);
 });
 
 // ── PORTFOLIO ─────────────────────────────────────
 async function loadPortfolio() {
   const { data: projects } = await db.from('portfolio').select('*').order('sort_order');
-  const container = document.getElementById('portfolio-container');
+  const dCont = document.getElementById('portfolio-container-right');
+  const mCont = document.getElementById('portfolio-container-mobile');
   if (!projects || projects.length === 0) return;
-  container.innerHTML = '';
+  
+  if(dCont) dCont.innerHTML = '';
+  if(mCont) mCont.innerHTML = '';
+  
   projects.forEach(p => {
-    const item = document.createElement('div');
-    item.className = 'portfolio-item';
-    item.innerHTML = `
+    const html = `
       ${p.image_url ? `<img src="${p.image_url}" alt="${p.title || ''}" loading="lazy" />` : ''}
       <div class="portfolio-overlay">
         <div class="portfolio-title">${p.title || ''}</div>
-        ${p.url ? `<a href="${p.url}" target="_blank" style="font-size:0.75rem;color:#a0a0a0;">View →</a>` : ''}
+        ${p.url ? `<span style="font-size:0.75rem;color:#a0a0a0;">View →</span>` : ''}
       </div>`;
-    if (p.url) item.onclick = () => window.open(p.url, '_blank');
-    container.appendChild(item);
+      
+    if (dCont) {
+        const itemD = document.createElement('div');
+        itemD.className = 'portfolio-item';
+        itemD.innerHTML = html;
+        if (p.url) itemD.onclick = () => window.open(p.url, '_blank');
+        dCont.appendChild(itemD);
+    }
+    if (mCont) {
+        const itemM = document.createElement('div');
+        itemM.className = 'portfolio-item';
+        itemM.innerHTML = html;
+        if (p.url) itemM.onclick = () => window.open(p.url, '_blank');
+        mCont.appendChild(itemM);
+    }
   });
 }
 
 // ── ALBUMS (SERIES) ───────────────────────────────
+window.openAlbumView = function(albumId, title, desc) {
+   currentAlbumFilter = albumId;
+   searchQuery = '';
+   if(document.getElementById('search-input')) document.getElementById('search-input').value = '';
+   
+   document.querySelector('.profile-hero').style.display = 'none';
+   document.getElementById('album-view-header').style.display = 'block';
+   document.getElementById('album-view-title').innerText = title;
+   document.getElementById('album-view-desc').innerText = desc || '';
+   document.getElementById('feed-title').style.display = 'none';
+   
+   window.scrollTo({ top: 0, behavior: 'smooth' });
+   loadPosts(true);
+};
+
+window.clearAlbumView = function() {
+   currentAlbumFilter = null;
+   document.querySelector('.profile-hero').style.display = 'flex';
+   document.getElementById('album-view-header').style.display = 'none';
+   document.getElementById('feed-title').style.display = 'block';
+   loadPosts(true);
+};
+
 async function loadAlbums() {
   const { data: albums } = await db.from('albums').select('*').order('created_at', { ascending: false });
-  const container = document.getElementById('albums-container');
+  const dCont = document.getElementById('albums-container-left');
+  const mCont = document.getElementById('albums-container-mobile');
   if (!albums || albums.length === 0) return;
   
-  container.innerHTML = '';
+  if(dCont) dCont.innerHTML = '';
+  if(mCont) mCont.innerHTML = '';
+  
   albums.forEach(album => {
-      const a = document.createElement('a');
-      a.className = 'album-card';
-      a.href = '#feed'; // simple scroll tracking for now
-      a.onclick = () => {
-         // when clicked, filter search by album id!
-         document.getElementById('search-input').value = ''; 
-         const filtered = window.allPosts.filter(p => p.album_id === album.id);
-         renderPosts(filtered);
-      };
-      a.innerHTML = `
+      const html = `
         <img src="${album.cover_url || ''}" class="album-cover" loading="lazy" />
         <div class="album-info">
             <div class="album-title">${album.title}</div>
             ${album.description ? `<div class="album-desc">${album.description}</div>` : ''}
         </div>
       `;
-      container.appendChild(a);
+      if(dCont) {
+          const a = document.createElement('a');
+          a.className = 'album-card';
+          a.href = 'javascript:void(0)';
+          a.onclick = (e) => { e.preventDefault(); openAlbumView(album.id, album.title, album.description); };
+          a.innerHTML = html;
+          dCont.appendChild(a);
+      }
+      if(mCont) {
+          const a = document.createElement('a');
+          a.className = 'album-card';
+          a.href = '#feed'; // jump to top on mobile
+          a.onclick = () => { openAlbumView(album.id, album.title, album.description); };
+          a.innerHTML = html;
+          mCont.appendChild(a);
+      }
   });
 }
 

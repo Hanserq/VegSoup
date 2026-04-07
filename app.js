@@ -64,7 +64,8 @@ async function loadProfile() {
   if (!data) return;
 
   document.title = data.name || 'My Site';
-  document.getElementById('nav-name').textContent   = data.name || '';
+  const navNameEl = document.getElementById('nav-name');
+  if (navNameEl) navNameEl.textContent = data.name || '';
   document.getElementById('profile-name').textContent  = data.name || '';
   document.getElementById('profile-tagline').textContent = data.tagline || '';
   document.getElementById('profile-about').textContent  = data.about || '';
@@ -118,6 +119,7 @@ function renderPosts(posts) {
       : '';
     const locationHTML = post.location ? `<span class="post-location">${post.location}</span>` : '';
     const likes = post.likes_count || 0;
+    const isLiked = localStorage.getItem(`liked_${post.id}`) === 'true';
 
     div.innerHTML = `
       ${mediaHTML}
@@ -128,8 +130,8 @@ function renderPosts(posts) {
             <div class="post-meta-left">
                 ${formatDate(post.created_at)}${locationHTML ? ' · ' + locationHTML : ''}
             </div>
-            <button class="like-btn" onclick="likePost('${post.id}', event)">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likePost('${post.id}', event)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                 <span class="like-count">${likes}</span>
             </button>
         </div>
@@ -142,20 +144,30 @@ function renderPosts(posts) {
 window.likePost = async function(postId, event) {
     event.stopPropagation(); // prevent modal opening
     const btn = event.currentTarget;
-    if(btn.classList.contains('liked')) return;
-    
-    // Optimistic UI update
-    btn.classList.add('liked');
-    btn.querySelector('svg').style.fill = 'currentColor'; // solid fill
+    const isLiked = localStorage.getItem(`liked_${postId}`) === 'true';
     const countSpan = btn.querySelector('.like-count');
-    countSpan.innerText = parseInt(countSpan.innerText) + 1;
-    
+    const svgIcon = btn.querySelector('svg');
     const post = window.allPosts.find(p => p.id === postId);
-    if(post) {
+    if (!post) return;
+    
+    if (isLiked) {
+        // Unlike action
+        localStorage.removeItem(`liked_${postId}`);
+        btn.classList.remove('liked');
+        svgIcon.style.fill = 'none';
+        countSpan.innerText = Math.max(0, parseInt(countSpan.innerText) - 1);
+        post.likes_count = Math.max(0, (post.likes_count || 1) - 1);
+    } else {
+        // Like action
+        localStorage.setItem(`liked_${postId}`, 'true');
+        btn.classList.add('liked');
+        svgIcon.style.fill = 'currentColor';
+        countSpan.innerText = parseInt(countSpan.innerText) + 1;
         post.likes_count = (post.likes_count || 0) + 1;
-        // Supabase basic update
-        await db.from('posts').update({ likes_count: post.likes_count }).eq('id', postId);
     }
+    
+    // Broadcast the update to the server
+    await db.from('posts').update({ likes_count: post.likes_count }).eq('id', postId);
 }
 
 // ── SEARCH ────────────────────────────────────────
@@ -243,6 +255,7 @@ window.openModal = function(postId) {
     const tagsHTML = (post.tags?.length > 0) ? `<div class="post-tags" style="margin-top: 1rem;">${post.tags.map(t => `<span class="tag">#${t}</span>`).join('')}</div>` : '';
     const locationHTML = post.location ? `<span class="post-location">${post.location}</span>` : '';
     const likes = post.likes_count || 0;
+    const isLiked = localStorage.getItem(`liked_${post.id}`) === 'true';
     
     infoPane.innerHTML = `
         <div style="display:flex; align-items:center; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
@@ -259,8 +272,8 @@ window.openModal = function(postId) {
         <div style="margin-top: auto; padding-top: 2rem;">
             ${locationHTML ? `<div style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 1rem;">📍 ${post.location}</div>` : ''}
             
-            <button class="like-btn" onclick="likePost('${post.id}', event)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likePost('${post.id}', event)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                 <span class="like-count" style="font-size: 0.9rem;">${likes}</span>
             </button>
         </div>

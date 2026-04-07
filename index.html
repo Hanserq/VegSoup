@@ -155,13 +155,23 @@
     }
 
     /* Media */
+    .post-media-wrapper { position: relative; }
     .post-media {
-      position: relative;
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
       background: #000;
-      overflow: hidden;
     }
-    .post-media img,
-    .post-media video {
+    .post-media::-webkit-scrollbar { display: none; }
+    .media-slide {
+      flex: 0 0 100%;
+      scroll-snap-align: center;
+      position: relative;
+    }
+    .media-slide img,
+    .media-slide video {
       width: 100%;
       display: block;
       max-height: 560px;
@@ -177,6 +187,7 @@
       font-weight: 600;
       padding: 3px 8px;
       border-radius: 20px;
+      z-index: 10;
     }
     .carousel-controls {
       display: flex;
@@ -387,44 +398,47 @@
 
   function buildCarousel(mediaUrls, mediaTypes, postId) {
     if (!mediaUrls || mediaUrls.length === 0) return '';
-    const idx = 0;
-    let html = `<div class="post-media" id="media-${postId}">`;
-    // Show first item
-    if (mediaTypes[0] === 'video') {
-      html += `<video src="${mediaUrls[0]}" controls playsinline></video>`;
-    } else {
-      html += `<img src="${mediaUrls[0]}" alt="" loading="lazy" />`;
-    }
-    if (mediaUrls.length > 1) {
-      html += `<span class="media-count">1 / ${mediaUrls.length}</span>`;
-    }
+    let html = `<div class="post-media-wrapper">`;
+    html += `<div class="post-media" id="media-${postId}" onscroll="updateSlider('${postId}', ${mediaUrls.length})">`;
+    mediaUrls.forEach((url, i) => {
+      html += `<div class="media-slide">`;
+      if (mediaTypes[i] === 'video') {
+        html += `<video src="${url}" controls playsinline></video>`;
+      } else {
+        html += `<img src="${url}" alt="" loading="lazy" />`;
+      }
+      html += `</div>`;
+    });
     html += `</div>`;
-    // Dots
+    
     if (mediaUrls.length > 1) {
+      html += `<span class="media-count" id="count-${postId}">1 / ${mediaUrls.length}</span>`;
       html += `<div class="carousel-controls">`;
       mediaUrls.forEach((_, i) => {
-        const escapedUrls = JSON.stringify(mediaUrls).replace(/"/g, '&quot;');
-        const escapedTypes = JSON.stringify(mediaTypes).replace(/"/g, '&quot;');
-        html += `<button class="carousel-dot${i === 0 ? ' active' : ''}" onclick="goSlide('${postId}', ${i}, ${escapedUrls}, ${escapedTypes})"></button>`;
+        html += `<button class="carousel-dot${i === 0 ? ' active' : ''}" id="dot-${postId}-${i}" onclick="scrollToSlide('${postId}', ${i})"></button>`;
       });
       html += `</div>`;
     }
+    html += `</div>`;
     return html;
   }
 
-  window.goSlide = function(postId, idx, urls, types) {
-    const container = document.getElementById(`media-${postId}`);
-    if (!container) return;
-    const isVideo = types[idx] === 'video';
-    const countHTML = urls.length > 1 ? `<span class="media-count">${idx+1} / ${urls.length}</span>` : '';
-    if (isVideo) {
-      container.innerHTML = `<video src="${urls[idx]}" controls playsinline></video>${countHTML}`;
-    } else {
-      container.innerHTML = `<img src="${urls[idx]}" alt="" loading="lazy" />${countHTML}`;
+  window.updateSlider = function(postId, total) {
+    const slider = document.getElementById(`media-${postId}`);
+    if (!slider) return;
+    const slideIndex = Math.round(slider.scrollLeft / slider.clientWidth);
+    const countEl = document.getElementById(`count-${postId}`);
+    if (countEl) countEl.innerText = `${slideIndex + 1} / ${total}`;
+    for (let i = 0; i < total; i++) {
+        const dot = document.getElementById(`dot-${postId}-${i}`);
+        if(dot) dot.classList.toggle('active', i === slideIndex);
     }
-    // Update dots
-    const dots = container.nextElementSibling?.querySelectorAll('.carousel-dot');
-    dots?.forEach((d, i) => d.classList.toggle('active', i === idx));
+  };
+
+  window.scrollToSlide = function(postId, index) {
+      const slider = document.getElementById(`media-${postId}`);
+      if (!slider) return;
+      slider.scrollTo({ left: index * slider.clientWidth, behavior: 'smooth' });
   };
 
   async function loadPosts() {

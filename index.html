@@ -403,7 +403,9 @@
     if (mediaUrls.length > 1) {
       html += `<div class="carousel-controls">`;
       mediaUrls.forEach((_, i) => {
-        html += `<button class="carousel-dot${i === 0 ? ' active' : ''}" onclick="goSlide('${postId}', ${i}, ${JSON.stringify(mediaUrls)}, ${JSON.stringify(mediaTypes)})"></button>`;
+        const escapedUrls = JSON.stringify(mediaUrls).replace(/"/g, '&quot;');
+        const escapedTypes = JSON.stringify(mediaTypes).replace(/"/g, '&quot;');
+        html += `<button class="carousel-dot${i === 0 ? ' active' : ''}" onclick="goSlide('${postId}', ${i}, ${escapedUrls}, ${escapedTypes})"></button>`;
       });
       html += `</div>`;
     }

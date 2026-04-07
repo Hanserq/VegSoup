@@ -327,6 +327,7 @@ main {
   white-space: pre-wrap;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -510,6 +511,7 @@ main {
   color: var(--text-2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -648,6 +650,7 @@ footer {
 .modal-info-pane .post-caption {
   font-size: 1.05rem;
   -webkit-line-clamp: unset;
+  line-clamp: unset;
 }
 
 /* ── Responsive ──────────────────────────────── */

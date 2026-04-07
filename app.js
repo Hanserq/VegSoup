@@ -360,7 +360,7 @@ window.openModal = function(postId) {
         ${captionHTML}
         ${tagsHTML}
         
-        <div style="margin-top: auto; padding-top: 2rem;">
+        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
             ${locationHTML ? `<div style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 1rem;">📍 ${post.location}</div>` : ''}
             
             <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likePost('${post.id}', event)">

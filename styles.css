@@ -640,6 +640,8 @@ footer {
   flex: 1;
   padding: 2.5rem;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   background: var(--bg-2);
   min-height: 0;
 }
@@ -685,16 +687,21 @@ footer {
 
   .modal-layout {
     flex-direction: column;
+    height: 100%;
   }
 
   .modal-media-pane {
     flex: 0 0 auto;
     height: 40vh;
+    max-height: 40%;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
 
   .modal-info-pane {
     padding: 1.5rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
   }
 }

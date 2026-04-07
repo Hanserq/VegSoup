@@ -210,6 +210,7 @@ window.likePost = async function(postId, event) {
         svgIcon.style.fill = 'none';
         countSpan.innerText = Math.max(0, parseInt(countSpan.innerText) - 1);
         post.likes_count = Math.max(0, (post.likes_count || 1) - 1);
+        await db.rpc('decrement_like', { post_id: postId });
     } else {
         // Like action
         localStorage.setItem(`liked_${postId}`, 'true');
@@ -217,10 +218,8 @@ window.likePost = async function(postId, event) {
         svgIcon.style.fill = 'currentColor';
         countSpan.innerText = parseInt(countSpan.innerText) + 1;
         post.likes_count = (post.likes_count || 0) + 1;
+        await db.rpc('increment_like', { post_id: postId });
     }
-    
-    // Broadcast the update to the server
-    await db.from('posts').update({ likes_count: post.likes_count }).eq('id', postId);
 }
 
 // ── SEARCH ────────────────────────────────────────

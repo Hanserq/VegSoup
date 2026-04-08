@@ -332,6 +332,18 @@ main {
   overflow: hidden;
 }
 
+.caption-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+  transition: opacity 0.15s;
+}
+
+.caption-link:hover {
+  opacity: 0.75;
+}
+
 .post-tags {
   display: flex;
   flex-wrap: wrap;

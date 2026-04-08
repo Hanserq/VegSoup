@@ -146,6 +146,18 @@ async function loadPosts(reset = false) {
   postPage++;
 }
 
+// ── LINKIFY ───────────────────────────────────────
+// Converts URLs in plain text into clickable <a> tags
+function linkify(text) {
+  if (!text) return '';
+  const urlRegex = /(https?:\/\/[^\s<>"]+)/g;
+  return text.replace(urlRegex, (url) => {
+    // Trim trailing punctuation that's likely not part of the URL
+    const trimmed = url.replace(/[.,;!?)]+$/, '');
+    return `<a href="${trimmed}" target="_blank" rel="noopener noreferrer" class="caption-link" onclick="event.stopPropagation()">${trimmed}</a>`;
+  });
+}
+
 function appendPosts(posts, offset) {
   const container = document.getElementById('posts-container');
   posts.forEach((post, i) => {
@@ -155,7 +167,7 @@ function appendPosts(posts, offset) {
     div.onclick = () => openModal(post.id);
 
     const mediaHTML = buildCarousel(post.media_urls || [], post.media_types || [], post.id);
-    const captionHTML = post.caption ? `<div class="post-caption">${post.caption}</div>` : '';
+    const captionHTML = post.caption ? `<div class="post-caption">${linkify(post.caption)}</div>` : '';
     const tagsHTML = (post.tags?.length > 0)
       ? `<div class="post-tags">${post.tags.map(t => `<span class="tag">#${t}</span>`).join('')}</div>`
       : '';
@@ -342,7 +354,7 @@ window.openModal = function(postId) {
     }
     
     // Inject Info
-    const captionHTML = post.caption ? `<div class="post-caption" style="-webkit-line-clamp: unset; white-space: pre-wrap;">${post.caption}</div>` : '';
+    const captionHTML = post.caption ? `<div class="post-caption" style="-webkit-line-clamp: unset; white-space: pre-wrap;">${linkify(post.caption)}</div>` : '';
     const tagsHTML = (post.tags?.length > 0) ? `<div class="post-tags" style="margin-top: 1rem;">${post.tags.map(t => `<span class="tag">#${t}</span>`).join('')}</div>` : '';
     const locationHTML = post.location ? `<span class="post-location">${post.location}</span>` : '';
     const likes = post.likes_count || 0;

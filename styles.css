@@ -640,21 +640,25 @@ footer {
 
 /* ── Responsive ──────────────────────────────── */
 @media (max-width: 768px) {
+  /* Slim top nav — just the logo, everything else moves to bottom tab */
   .nav-inner {
-    flex-direction: column;
-    height: auto;
-    padding: 1rem;
-    gap: 1rem;
+    flex-direction: row;
+    height: 50px;
+    padding: 0 1.25rem;
+    gap: 0;
   }
 
+  /* Hide nav links + search — bottom tab bar replaces them */
   .nav-right {
-    width: 100%;
-    flex-direction: column-reverse;
-    gap: 1rem;
+    display: none !important;
+  }
+
+  .nav-links {
+    display: none !important;
   }
 
   .search-bar {
-    width: 100%;
+    display: none !important;
   }
 
   .profile-hero {
@@ -698,20 +702,6 @@ footer {
 }
 
 @media (max-width: 768px) {
-  /* Hide desktop nav-links and search on mobile — bottom nav replaces them */
-  .nav-links { display: none; }
-  .search-bar { display: none; }
-  .nav-right { display: none; }
-
-  /* Keep just the logo in the top nav */
-  .nav-inner {
-    flex-direction: row;
-    height: 50px;
-    padding: 0 1.25rem;
-  }
-
-  /* Add bottom padding so last post isn't hidden by tab bar */
-  main { padding-bottom: 80px; }
 
   .mobile-bottom-nav {
     display: flex;

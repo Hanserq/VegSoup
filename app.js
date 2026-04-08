@@ -345,6 +345,8 @@ async function loadAlbums() {
 }
 
 // ── MODAL ─────────────────────────────────────────
+let _modalAudio = null; // currently playing audio element
+
 window.openModal = function(postId) {
     const post = window.allPosts.find(p => p.id === postId);
     if(!post) return;
@@ -353,7 +355,9 @@ window.openModal = function(postId) {
     const mediaPane = document.getElementById('modal-media');
     const infoPane = document.getElementById('modal-info');
     
-    // Update URL hash for deep-linking / sharing
+    // Stop any previous audio
+    if (_modalAudio) { _modalAudio.pause(); _modalAudio.src = ''; _modalAudio = null; }
+    
     const shareUrl = `${location.origin}${location.pathname}#post/${postId}`;
     
     // Inject Media
@@ -363,6 +367,33 @@ window.openModal = function(postId) {
         mediaPane.innerHTML = buildCarousel(post.media_urls, post.media_types, `modal-${postId}`);
     } else {
         mediaPane.style.display = 'none';
+    }
+
+    // Audio — autoplay with mute toggle overlay
+    if (post.audio_url) {
+        const isMuted = localStorage.getItem('postAudioMuted') === 'true';
+        _modalAudio = new Audio(post.audio_url);
+        _modalAudio.loop = post.audio_loop !== false;
+        _modalAudio.muted = isMuted;
+        _modalAudio.play().catch(() => {});
+
+        // Inject mute button overlay on media pane (or fallback to info pane top)
+        const muteTarget = hasMedia ? mediaPane : infoPane;
+        const muteBtn = document.createElement('button');
+        muteBtn.className = 'audio-mute-btn';
+        muteBtn.id = 'modal-mute-btn';
+        muteBtn.title = isMuted ? 'Unmute' : 'Mute';
+        muteBtn.innerHTML = isMuted ? muteOffSVG() : muteOnSVG();
+        muteBtn.onclick = (e) => {
+            e.stopPropagation();
+            const nowMuted = !_modalAudio.muted;
+            _modalAudio.muted = nowMuted;
+            localStorage.setItem('postAudioMuted', nowMuted);
+            muteBtn.innerHTML = nowMuted ? muteOffSVG() : muteOnSVG();
+            muteBtn.title = nowMuted ? 'Unmute' : 'Mute';
+        };
+        muteTarget.style.position = 'relative';
+        muteTarget.appendChild(muteBtn);
     }
     
     // Inject Info
@@ -403,28 +434,19 @@ window.openModal = function(postId) {
     document.body.style.overflow = 'hidden';
 }
 
-// Share a post — uses native share sheet on mobile, clipboard fallback on desktop
-window.sharePost = async function(postId, event) {
-    event.stopPropagation();
-    const shareUrl = `${location.origin}${location.pathname}#post/${postId}`;
-    const post = window.allPosts.find(p => p.id === postId);
-    const text = post?.caption ? post.caption.slice(0, 100) : 'Check out this post';
-    try {
-        if (navigator.share) {
-            await navigator.share({ title: document.title, text, url: shareUrl });
-        } else {
-            await navigator.clipboard.writeText(shareUrl);
-            showToast('Link copied to clipboard!');
-        }
-    } catch(e) {
-        // User cancelled or error — silently ignore
-    }
+function muteOnSVG() {
+    return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+}
+function muteOffSVG() {
+    return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`;
 }
 
 
 window.doCloseModalAnimation = function() {
     const modal = document.getElementById('post-modal');
     if (!modal || !modal.classList.contains('open')) return;
+    // Stop audio
+    if (_modalAudio) { _modalAudio.pause(); _modalAudio.src = ''; _modalAudio = null; }
     const content = document.getElementById('modal-content');
     if (content) {
         content.setAttribute('data-closing', '');
@@ -442,7 +464,6 @@ window.closeModal = function() {
     const modal = document.getElementById('post-modal');
     if (!modal || !modal.classList.contains('open')) return;
     
-    // Use history.back() if we pushed a state, so the app remains perfectly historically synced
     if (window.history.state && window.history.state.modalOpen) {
         window.history.back(); 
     } else {

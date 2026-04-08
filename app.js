@@ -77,6 +77,34 @@ async function loadProfile() {
   } else {
     avatarEl.textContent = (data.name || 'C')[0].toUpperCase();
   }
+
+  // ── Apply appearance settings ──────────────────
+  const root = document.documentElement;
+
+  // Accent color
+  if (data.accent_color) root.style.setProperty('--accent', data.accent_color);
+
+  // Site background
+  if (data.site_bg_color) root.style.setProperty('--bg', data.site_bg_color);
+
+  // Profile cover
+  const heroEl = document.getElementById('profile-hero');
+  if (heroEl && data.cover_url) {
+    heroEl.style.backgroundImage = `url(${data.cover_url})`;
+    heroEl.style.backgroundSize = 'cover';
+    heroEl.style.backgroundPosition = 'center';
+  }
+
+  // Section backgrounds — apply to each page container
+  function applyBg(pageId, url, color) {
+    const el = document.getElementById(pageId);
+    if (!el) return;
+    if (url) { el.style.backgroundImage = `url(${url})`; el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center'; }
+    else if (color) { el.style.backgroundColor = color; }
+  }
+  applyBg('page-home', data.feed_bg_url, data.feed_bg_color);
+  applyBg('page-albums', data.albums_bg_url, data.albums_bg_color);
+  applyBg('page-work', data.work_bg_url, data.work_bg_color);
 }
 
 // ── POSTS (INFINITE SCROLL) ───────────────────────

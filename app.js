@@ -279,10 +279,184 @@ window.likePost = async function(postId, event) {
 }
 
 // ── SEARCH ────────────────────────────────────────
+let playgroundActive = false;
+let pgAudio = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-17.mp3'); 
+pgAudio.loop = true;
+
+function handleCheatAttempt(e) {
+    const val = e.target.value.toLowerCase().trim();
+    if (val === 'gravity' && !playgroundActive) {
+        initPlayground();
+        e.target.value = ''; // clear it
+        return true;
+    }
+    return false;
+}
+
 document.getElementById('search-input')?.addEventListener('input', (e) => {
+    if (handleCheatAttempt(e)) return;
     searchQuery = e.target.value.toLowerCase().trim();
     loadPosts(true);
 });
+
+// Mobile search also needs cheat detection
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('mobile-search-input')?.addEventListener('input', (e) => {
+        if (handleCheatAttempt(e)) return;
+    });
+});
+
+// ── PLAYGROUND MODE (CHEATS) ──────────────────────
+let pgEngine, pgRender, pgRunner;
+let pgTimerInterval;
+
+window.initPlayground = function() {
+    if (playgroundActive) return;
+    playgroundActive = true;
+
+    // Show Notification
+    const notif = document.getElementById('cheat-notification');
+    if (notif) {
+        notif.classList.add('show');
+        setTimeout(() => notif.classList.remove('show'), 3000);
+    }
+
+    // Play Music
+    pgAudio.currentTime = 0;
+    pgAudio.play().catch(() => {});
+
+    // Show Overlay
+    const overlay = document.getElementById('playground-overlay');
+    overlay.classList.add('active');
+
+    // Setup Matter.js
+    const { Engine, Render, Runner, Bodies, Composite, Mouse, MouseConstraint } = Matter;
+    pgEngine = Engine.create();
+    const container = document.getElementById('playground-canvas-container');
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    pgRender = Render.create({
+        element: container,
+        engine: pgEngine,
+        options: {
+            width: width,
+            height: height,
+            wireframes: false,
+            background: 'transparent'
+        }
+    });
+
+    Render.run(pgRender);
+    pgRunner = Runner.create();
+    Runner.run(pgRunner, pgEngine);
+
+    // Context boundaries (ground, walls)
+    const wallThick = 60;
+    const ground = Bodies.rectangle(width/2, height + wallThick/2, width, wallThick, { isStatic: true });
+    const leftWall = Bodies.rectangle(-wallThick/2, height/2, wallThick, height, { isStatic: true });
+    const rightWall = Bodies.rectangle(width + wallThick/2, height/2, wallThick, height, { isStatic: true });
+    const ceiling = Bodies.rectangle(width/2, -wallThick/2, width, wallThick, { isStatic: true });
+    Composite.add(pgEngine.world, [ground, leftWall, rightWall, ceiling]);
+
+    // Objects from posts
+    const posts = window.allPosts || [];
+    const limit = Math.min(posts.length, 15);
+    for (let i = 0; i < limit; i++) {
+        const p = posts[i];
+        const imgUrl = (p.media_urls && p.media_urls[0]) || '';
+        const size = 120 + Math.random() * 40;
+        const box = Bodies.rectangle(
+            Math.random() * width, 
+            -100 - (i * 100), 
+            size, size, 
+            {
+                render: {
+                    sprite: { texture: imgUrl, xScale: size/400, yScale: size/400 } // rough scale
+                },
+                restitution: 0.6
+            }
+        );
+        // If image sprite fails, it will just be a gray box, but we can't easily check load here
+        Composite.add(pgEngine.world, box);
+    }
+
+    // Skill objects (Text boxes)
+    const skills = ['Javascript', 'React', 'HTML5', 'CSS3', 'Node.js', 'Git', 'Terminal', 'Python', 'UI/UX'];
+    skills.forEach((s, idx) => {
+        const sw = s.length * 12 + 20;
+        const box = Bodies.rectangle(Math.random() * width, -500 - (idx * 50), sw, 40, {
+            chamfer: { radius: 20 },
+            render: {
+                fillStyle: '#7c3aed',
+                text: { content: s, color: '#ffffff', size: 16 } // custom handling in custom renderer or just color
+            },
+            restitution: 0.8
+        });
+        Composite.add(pgEngine.world, box);
+    });
+
+    // Interaction
+    const mouse = Mouse.create(pgRender.canvas);
+    const mouseConstraint = MouseConstraint.create(pgEngine, {
+        mouse: mouse,
+        constraint: { stiffness: 0.2, render: { visible: false } }
+    });
+    Composite.add(pgEngine.world, mouseConstraint);
+    pgRender.mouse = mouse;
+
+    // Timer (5 minutes)
+    let timeLeft = 300;
+    const timerEl = document.getElementById('playground-countdown');
+    pgTimerInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <= 0) {
+            stopPlayground();
+            return;
+        }
+        const m = Math.floor(timeLeft / 60);
+        const s = timeLeft % 60;
+        if (timerEl) timerEl.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }, 1000);
+
+    // Handle Resize
+    window.addEventListener('resize', handlePgResize);
+};
+
+function handlePgResize() {
+    if (!playgroundActive || !pgRender) return;
+    pgRender.canvas.width = window.innerWidth;
+    pgRender.canvas.height = window.innerHeight;
+}
+
+window.stopPlayground = function() {
+    if (!playgroundActive) return;
+    playgroundActive = false;
+
+    // Stop Music
+    pgAudio.pause();
+
+    // Cleanup
+    clearInterval(pgTimerInterval);
+    window.removeEventListener('resize', handlePgResize);
+    
+    // Matter cleanup
+    Matter.Render.stop(pgRender);
+    Matter.Runner.stop(pgRunner);
+    Matter.Engine.clear(pgEngine);
+    pgRender.canvas.remove();
+    pgRender.canvas = null;
+    pgRender.context = null;
+    pgRender.textures = {};
+
+    // Restore UI
+    const overlay = document.getElementById('playground-overlay');
+    overlay.classList.remove('active');
+    
+    // Clear search
+    const input = document.getElementById('search-input');
+    if (input) input.value = '';
+};
 
 // ── PORTFOLIO ─────────────────────────────────────
 async function loadPortfolio() {

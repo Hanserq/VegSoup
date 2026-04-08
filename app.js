@@ -294,6 +294,7 @@ window.likePost = async function(postId, event) {
         localStorage.setItem(`liked_${postId}`, 'true');
         btn.classList.add('liked');
         svgIcon.style.fill = 'currentColor';
+        if (window.triggerHaptic) window.triggerHaptic('heart');
         countSpan.innerText = parseInt(countSpan.innerText) + 1;
         post.likes_count = (post.likes_count || 0) + 1;
         await db.rpc('increment_like', { post_id: postId });
@@ -1153,109 +1154,28 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// ── GUESTBOOK / REACTIONS ───────────────────────
-let guestbookLoaded = false;
-
-window.toggleGuestbook = function() {
-    const body = document.getElementById('guestbook-body');
-    body.classList.toggle('open');
-    if (body.classList.contains('open') && !guestbookLoaded) {
-        loadGuestbook();
-    }
+// ── HAPTICS / VIBRATION ENGINES ───────────────────
+window.triggerHaptic = function(type = 'light') {
+    if (!navigator.vibrate) return;
+    
+    // Most mobile browsers ignore vibration unless triggered by direct user interaction
+    try {
+        if (type === 'light') {
+            navigator.vibrate(10); // Very short tick
+        } else if (type === 'heavy') {
+            navigator.vibrate([20, 30, 20]); // Double knock
+        } else if (type === 'heart') {
+            navigator.vibrate([15, 60, 25]); // Heartbeat feel
+        }
+    } catch(e) { /* ignore */ }
 };
 
-async function loadGuestbook() {
-    const list = document.getElementById('guestbook-list');
-    const countEl = document.getElementById('guestbook-count');
-    try {
-        const { data, error } = await db.from('guestbook').select('*').order('created_at', { ascending: false }).limit(50);
-        if (error) throw error;
-        
-        guestbookLoaded = true;
-        countEl.innerText = data.length || 0;
-        
-        if (!data || data.length === 0) {
-            list.innerHTML = `<div class="guestbook-loading">No notes yet. Be the first!</div>`;
-            return;
-        }
-
-        list.innerHTML = data.map(entry => {
-            const timeAgo = getTimeAgo(new Date(entry.created_at));
-            return `
-              <div class="guestbook-item">
-                  <div class="guestbook-item-header">
-                      <span class="guestbook-item-author">${escapeHTML(entry.author_name || 'Anonymous')}</span>
-                      <span class="guestbook-item-time">${timeAgo}</span>
-                  </div>
-                  <div class="guestbook-item-msg">${escapeHTML(entry.message)}</div>
-              </div>
-            `;
-        }).join('');
-    } catch (e) {
-        console.error('Failed to load guestbook:', e);
-        list.innerHTML = `<div class="guestbook-loading">Failed to load notes.</div>`;
-    }
-}
-
-// Initial count fetch (lightweight)
-async function initGuestbookCount() {
-    const { count } = await db.from('guestbook').select('*', { count: 'exact', head: true });
-    if (count !== null) {
-        document.getElementById('guestbook-count').innerText = count;
-    }
-}
-document.addEventListener('DOMContentLoaded', initGuestbookCount);
-
-const gbForm = document.getElementById('guestbook-form');
-if (gbForm) {
-    gbForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('gb-submit');
-        const nameInput = document.getElementById('gb-name');
-        const msgInput = document.getElementById('gb-msg');
-        
-        const name = nameInput.value.trim() || 'Anonymous';
-        const msg = msgInput.value.trim();
-        if (!msg) return;
-
-        btn.disabled = true;
-        btn.innerText = '...';
-
-        try {
-            const { error } = await db.from('guestbook').insert([{ author_name: name, message: msg }]);
-            if (error) throw error;
-            
-            msgInput.value = '';
-            await loadGuestbook(); // refresh
-        } catch (err) {
-            alert('Could not post note: ' + err.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = '→';
-        }
+// Bind haptics to Mobile Tabs
+document.addEventListener('DOMContentLoaded', () => {
+    const tabs = document.querySelectorAll('.mob-tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => triggerHaptic('light'));
     });
-}
+});
 
-// Helper functions for Guestbook
-function getTimeAgo(date) {
-    const seconds = Math.floor((new Date() - date) / 1000);
-    let interval = seconds / 31536000;
-    if (interval > 1) return Math.floor(interval) + "y ago";
-    interval = seconds / 2592000;
-    if (interval > 1) return Math.floor(interval) + "mo ago";
-    interval = seconds / 86400;
-    if (interval > 1) return Math.floor(interval) + "d ago";
-    interval = seconds / 3600;
-    if (interval > 1) return Math.floor(interval) + "h ago";
-    interval = seconds / 60;
-    if (interval > 1) return Math.floor(interval) + "m ago";
-    return Math.floor(seconds) + "s ago";
-}
-
-function escapeHTML(str) {
-    if (!str) return '';
-    return str.replace(/[&<>'"]/g, tag => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-    }[tag] || tag));
-}
 

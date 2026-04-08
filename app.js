@@ -342,25 +342,24 @@ window.openModal = function(postId) {
     const isLiked = localStorage.getItem(`liked_${post.id}`) === 'true';
     
     infoPane.innerHTML = `
-        <div style="display:flex; align-items:center; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
-            <div class="avatar" style="width: 40px; height: 40px; font-size: 1rem;">${document.getElementById('avatar-el').innerHTML}</div>
-            <div>
-                <div style="font-weight: 600; font-size: 0.9rem;">${document.getElementById('profile-name').innerText}</div>
-                <div style="font-size: 0.75rem; color: var(--text-2);">${formatDate(post.created_at)}</div>
+        <!-- Author row: avatar + name/date on left, like button on right -->
+        <div style="display:flex; align-items:center; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; justify-content: space-between;">
+            <div style="display:flex; align-items:center; gap: 0.75rem;">
+                <div class="avatar" style="width: 36px; height: 36px; font-size: 0.9rem;">${document.getElementById('avatar-el').innerHTML}</div>
+                <div>
+                    <div style="font-weight: 600; font-size: 0.9rem;">${document.getElementById('profile-name').innerText}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-2);">${formatDate(post.created_at)}</div>
+                </div>
             </div>
-        </div>
-        
-        ${captionHTML}
-        ${tagsHTML}
-        
-        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
-            ${locationHTML ? `<div style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 1rem;">📍 ${post.location}</div>` : ''}
-            
             <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likePost('${post.id}', event)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                 <span class="like-count" style="font-size: 0.9rem;">${likes}</span>
             </button>
         </div>
+
+        ${captionHTML}
+        ${tagsHTML}
+        ${locationHTML ? `<div style="font-size: 0.8rem; color: var(--text-2); margin-top: 1.25rem;">📍 ${post.location}</div>` : ''}
     `;
     
     modal.classList.add('open');

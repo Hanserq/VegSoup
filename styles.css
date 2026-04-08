@@ -692,31 +692,66 @@ footer {
     grid-template-columns: 1fr;
   }
 
+  /* Mobile modal: full-screen sheet style */
+  .modal {
+    align-items: flex-end; /* sheet slides up from bottom */
+  }
+
+  .modal-content {
+    width: 100vw;
+    max-width: 100vw;
+    height: 92vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    margin-top: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: block; /* single scrollable block on mobile */
+  }
+
+  .modal-close {
+    position: fixed;
+    top: auto;
+    bottom: calc(92vh + env(safe-area-inset-bottom, 0px) - 92vh + 12px);
+  }
+
   .modal-layout {
     flex-direction: column;
-    height: 100%;
+    height: auto;
   }
 
   .modal-media-pane {
-    flex: 0 0 auto;
-    height: 45vw;      /* square-ish on mobile */
-    max-height: 45vh;  /* never more than 45% of screen */
+    flex: none;
+    width: 100%;
+    height: auto;
+    max-height: 65vh;
     border-right: none;
     border-bottom: 1px solid var(--border);
-    align-items: center; /* centre the image within the fixed height pane */
+    align-items: center;
+    overflow: hidden;
   }
 
-  /* Reset modal media-slide height so it doesn't try to fill 100% of pane */
+  .modal-media-pane .post-media {
+    height: auto;
+  }
+
   .modal-media-pane .media-slide {
-    height: 100%;
+    height: auto;
+  }
+
+  .modal-media-pane .media-slide img,
+  .modal-media-pane .media-slide video {
+    width: 100%;
+    height: auto;
+    max-height: 65vh;
+    aspect-ratio: unset;
+    object-fit: contain;
   }
 
   .modal-info-pane {
-    padding: 1.5rem;
-    flex: 1 1 auto;
+    padding: 1.25rem;
+    flex: none;
     min-height: 0;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-y: visible; /* parent modal-content scrolls */
   }
 }
 

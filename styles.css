@@ -124,15 +124,27 @@ main {
 
 /* ── Profile hero ────────────────────────────── */
 .profile-hero {
-  padding: 3rem 0 2.5rem;
-  display: flex;
-  gap: 2rem;
-  align-items: center;
   border-bottom: 1px solid var(--border);
   margin-bottom: 2.5rem;
   position: relative;
   overflow: hidden;
+  /* Dynamic padding depending on if cover is present */
 }
+.profile-hero.has-cover {
+  padding: 6rem 0 4rem; /* 50%+ bigger hero when cover active */
+}
+.profile-hero:not(.has-cover) {
+  padding: 3rem 0 2.5rem;
+}
+
+.profile-hero-inner {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  position: relative;
+  z-index: 2; /* Sit above cover */
+}
+
 
 /* Cover image sits behind avatar + bio */
 .profile-cover-layer {
@@ -165,8 +177,8 @@ main {
 }
 
 /* Avatar, info, and any direct children sit above cover */
-.profile-hero > .avatar,
-.profile-hero > .profile-info {
+.profile-hero-inner > .avatar,
+.profile-hero-inner > .profile-info {
   position: relative;
   z-index: 2;
 }

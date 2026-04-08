@@ -869,5 +869,35 @@ const _origLoadPosts = window.loadPosts;
 document.addEventListener('DOMContentLoaded', () => {
     checkDeepLink();
 });
-// Also handle browser back/forward hash change
+
+// ── SHARE POST NATIVE API ─────────────────────────
+window.sharePost = function(postId, event) {
+    if (event) event.stopPropagation();
+    
+    // Construct the deep link URL
+    const shareUrl = `${location.origin}${location.pathname}#post/${postId}`;
+    const post = window.allPosts?.find(p => p.id === postId);
+    const title = post && post.caption ? `Post by ${document.getElementById('profile-name').innerText}` : document.title;
+    
+    // Use native share menu if available (Mobile Safari, Android Chrome, etc)
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            url: shareUrl
+        }).catch((err) => {
+            console.log('User cancelled share or error:', err);
+        });
+    } else {
+        // Fallback for desktop/unsupported browsers: copy to clipboard
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            const btn = event.currentTarget;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<span style="font-size: 0.8rem; font-weight: 500;">Copied!</span>`;
+            setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            alert('Share link: ' + shareUrl);
+        });
+    }
+};// Also handle browser back/forward hash change
 window.addEventListener('hashchange', checkDeepLink);

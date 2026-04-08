@@ -325,13 +325,16 @@ window.openModal = function(postId) {
     const mediaPane = document.getElementById('modal-media');
     const infoPane = document.getElementById('modal-info');
     
+    // Update URL hash for deep-linking / sharing
+    const shareUrl = `${location.origin}${location.pathname}#post/${postId}`;
+    
     // Inject Media
     const hasMedia = post.media_urls && post.media_urls.length > 0;
     if(hasMedia) {
         mediaPane.style.display = 'flex';
         mediaPane.innerHTML = buildCarousel(post.media_urls, post.media_types, `modal-${postId}`);
     } else {
-        mediaPane.style.display = 'none'; // Takes full width
+        mediaPane.style.display = 'none';
     }
     
     // Inject Info
@@ -342,7 +345,7 @@ window.openModal = function(postId) {
     const isLiked = localStorage.getItem(`liked_${post.id}`) === 'true';
     
     infoPane.innerHTML = `
-        <!-- Author row: avatar + name/date on left, like button on right -->
+        <!-- Author row: avatar + name/date on left, like + share on right -->
         <div style="display:flex; align-items:center; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; justify-content: space-between;">
             <div style="display:flex; align-items:center; gap: 0.75rem;">
                 <div class="avatar" style="width: 36px; height: 36px; font-size: 0.9rem;">${document.getElementById('avatar-el').innerHTML}</div>
@@ -351,10 +354,15 @@ window.openModal = function(postId) {
                     <div style="font-size: 0.75rem; color: var(--text-2);">${formatDate(post.created_at)}</div>
                 </div>
             </div>
-            <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likePost('${post.id}', event)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                <span class="like-count" style="font-size: 0.9rem;">${likes}</span>
-            </button>
+            <div style="display:flex; align-items:center; gap: 0.5rem;">
+                <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likePost('${post.id}', event)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                    <span class="like-count" style="font-size: 0.9rem;">${likes}</span>
+                </button>
+                <button class="share-btn" onclick="sharePost('${postId}', event)" title="Share post">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                </button>
+            </div>
         </div>
 
         ${captionHTML}
@@ -362,23 +370,40 @@ window.openModal = function(postId) {
         ${locationHTML ? `<div style="font-size: 0.8rem; color: var(--text-2); margin-top: 1.25rem;">📍 ${post.location}</div>` : ''}
     `;
     
-    window.history.pushState({ modalOpen: true }, '');
+    window.history.pushState({ modalOpen: true, postId }, '', shareUrl);
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 }
+
+// Share a post — uses native share sheet on mobile, clipboard fallback on desktop
+window.sharePost = async function(postId, event) {
+    event.stopPropagation();
+    const shareUrl = `${location.origin}${location.pathname}#post/${postId}`;
+    const post = window.allPosts.find(p => p.id === postId);
+    const text = post?.caption ? post.caption.slice(0, 100) : 'Check out this post';
+    try {
+        if (navigator.share) {
+            await navigator.share({ title: document.title, text, url: shareUrl });
+        } else {
+            await navigator.clipboard.writeText(shareUrl);
+            showToast('Link copied to clipboard!');
+        }
+    } catch(e) {
+        // User cancelled or error — silently ignore
+    }
+}
+
 
 window.doCloseModalAnimation = function() {
     const modal = document.getElementById('post-modal');
     if (!modal || !modal.classList.contains('open')) return;
     const content = document.getElementById('modal-content');
     if (content) {
-        content.style.transition = 'transform 0.3s ease';
-        content.style.transform = 'translateY(100%)';
+        content.setAttribute('data-closing', '');
         setTimeout(() => {
             modal.classList.remove('open');
-            content.style.transform = '';
-            content.style.transition = '';
-        }, 280);
+            content.removeAttribute('data-closing');
+        }, 300);
     } else {
         modal.classList.remove('open');
     }
@@ -685,3 +710,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, { passive: true });
 })();
+
+// ── DEEP LINK: auto-open post from URL hash ────────
+// e.g. hanserq.github.io/VegSoup/#post/some-uuid
+function checkDeepLink() {
+    const hash = location.hash; // e.g. "#post/abc-123"
+    const match = hash.match(/^#post\/(.+)$/);
+    if (!match) return;
+    const postId = match[1];
+    // Posts may not be loaded yet — wait and retry
+    const tryOpen = (attempts) => {
+        const post = window.allPosts?.find(p => p.id === postId);
+        if (post) {
+            openModal(postId);
+        } else if (attempts > 0) {
+            setTimeout(() => tryOpen(attempts - 1), 300);
+        }
+    };
+    tryOpen(15); // retry up to 15×300ms = 4.5 seconds
+}
+
+// Run after initial posts are fetched
+const _origLoadPosts = window.loadPosts;
+document.addEventListener('DOMContentLoaded', () => {
+    checkDeepLink();
+});
+// Also handle browser back/forward hash change
+window.addEventListener('hashchange', checkDeepLink);

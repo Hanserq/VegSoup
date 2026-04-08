@@ -377,6 +377,23 @@ main {
   border-color: #f43f5e;
 }
 
+.share-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  padding: 0.3rem 0.55rem;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.share-btn:hover {
+  background: var(--bg);
+  color: var(--text-1);
+}
+
 /* ── Portfolio grid ──────────────────────────── */
 .portfolio-grid {
   display: grid;
@@ -568,6 +585,12 @@ footer {
 
 .modal.open .modal-content {
   transform: scale(1);
+}
+
+/* Prevent the scale open-animation from re-playing during close sequence */
+.modal-content[data-closing] {
+  transform: translateY(100%) !important;
+  transition: transform 0.3s ease !important;
 }
 
 .modal-close {

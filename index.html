@@ -26,14 +26,14 @@
 <!-- ═══════════════ NAV ═══════════════ -->
 <nav>
   <div class="nav-inner">
-    <div class="nav-logo"></div>
+    <div class="nav-logo" id="nav-logo-link" onclick="navigateTo('home')" style="cursor:pointer;"></div>
     
     <div class="nav-right">
       <input type="text" id="search-input" placeholder="Search tagged posts..." class="search-bar" />
       <div class="nav-links">
-        <a href="#feed">Posts</a>
-        <a href="#portfolio">Work</a>
-        <a href="#albums">Albums</a>
+        <a href="#" onclick="navigateTo('home'); return false;" id="nav-posts" class="nav-link-active">Posts</a>
+        <a href="#" onclick="navigateTo('albums'); return false;" id="nav-albums">Albums</a>
+        <a href="#" onclick="navigateTo('work'); return false;" id="nav-work">Work</a>
       </div>
     </div>
   </div>
@@ -41,21 +41,10 @@
 
 <!-- ═══════════════ MAIN ═══════════════ -->
 <main>
-  <div class="layout-container">
-    
-    <!-- LEFT: Albums (Desktop) -->
-    <aside class="layout-left">
-      <section id="albums-desktop">
-        <div class="section-title" style="margin-top: 0">Albums</div>
-        <div id="albums-container-left" class="albums-col">
-          <div class="portfolio-empty">No albums yet.</div>
-        </div>
-      </section>
-    </aside>
 
-    <!-- CENTER: Profile + Posts -->
-    <div class="layout-center">
-      
+  <!-- PAGE: Home / Posts (default) -->
+  <div id="page-home" class="page-view">
+    <div class="layout-container layout-single">
       <!-- Profile Hero -->
       <section class="profile-hero">
         <div class="avatar" id="avatar-el">…</div>
@@ -66,11 +55,11 @@
         </div>
       </section>
 
-      <!-- Shared Album Header for viewing specific albums -->
+      <!-- Album view header (when an album is open) -->
       <section id="album-view-header" style="display: none; border-bottom: 1px solid var(--border); padding-bottom: 2rem; margin-bottom: 2rem;">
-         <button onclick="clearAlbumView()" class="like-btn" style="margin-bottom: 1rem; border: none; padding: 0;">← Back to timeline</button>
-         <h2 id="album-view-title" style="font-size: 1.5rem; margin-bottom: 0.5rem; letter-spacing: -0.02em;"></h2>
-         <p id="album-view-desc" style="color: var(--text-2); font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap;"></p>
+        <button onclick="clearAlbumView()" class="like-btn" style="margin-bottom: 1rem; border: none; padding: 0;">← Back to timeline</button>
+        <h2 id="album-view-title" style="font-size: 1.5rem; margin-bottom: 0.5rem; letter-spacing: -0.02em;"></h2>
+        <p id="album-view-desc" style="color: var(--text-2); font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap;"></p>
       </section>
 
       <!-- Posts Feed -->
@@ -80,33 +69,30 @@
         <div id="posts-container"></div>
         <div id="infinite-loader" class="loading">Loading more...</div>
       </section>
-      
-      <!-- MOBILE ONLY: Albums and Work revert to single column below posts -->
-      <div class="mobile-sections">
-        <section id="albums">
-          <div class="section-title">Albums</div>
-          <div id="albums-container-mobile" class="albums-grid"></div>
-        </section>
-        
-        <section id="portfolio">
-          <div class="section-title">Work</div>
-          <div id="portfolio-container-mobile" class="portfolio-grid"></div>
-        </section>
-      </div>
-
     </div>
-
-    <!-- RIGHT: Work (Desktop) -->
-    <aside class="layout-right">
-      <section id="portfolio-desktop">
-        <div class="section-title" style="margin-top: 0">Work</div>
-        <div id="portfolio-container-right" class="portfolio-col">
-          <div class="portfolio-empty">No projects yet.</div>
-        </div>
-      </section>
-    </aside>
-
   </div>
+
+  <!-- PAGE: Albums -->
+  <div id="page-albums" class="page-view" style="display:none;">
+    <div class="layout-container layout-single">
+      <section>
+        <div class="section-title" style="margin-top: 2rem;">Albums</div>
+        <div id="albums-container-page" class="albums-grid"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- PAGE: Work -->
+  <div id="page-work" class="page-view" style="display:none;">
+    <div class="layout-container layout-single">
+      <section>
+        <div class="section-title" style="margin-top: 2rem;">Work</div>
+        <div id="portfolio-container-page" class="portfolio-grid"></div>
+        <div class="portfolio-empty" id="portfolio-empty-page" style="display:none;">No projects yet.</div>
+      </section>
+    </div>
+  </div>
+
 </main>
 
 <footer id="footer-name">—</footer>

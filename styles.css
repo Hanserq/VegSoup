@@ -102,50 +102,24 @@ nav {
   color: var(--text-1);
 }
 
+.nav-link-active {
+  color: var(--text-1) !important;
+  font-weight: 600;
+}
+
 /* ── Main container ──────────────────────────── */
 main {
   padding: 0 1.25rem 5rem;
 }
 
 .layout-container {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
   max-width: var(--max-w);
   margin: 0 auto;
 }
 
-.layout-left,
-.layout-right {
-  display: none;
-}
-
-.layout-center {
-  flex: 1;
-  min-width: 0;
-  width: 100%;
-}
-
-@media (min-width: 1024px) {
-  .layout-container {
-    display: grid;
-    grid-template-columns: 240px minmax(0, var(--max-w)) 240px;
-    gap: 3rem;
-    max-width: 1200px;
-    align-items: start;
-    justify-content: center;
-  }
-
-  .layout-left,
-  .layout-right {
-    display: block;
-    position: sticky;
-    top: 80px;
-  }
-
-  .mobile-sections {
-    display: none;
-  }
+.layout-single {
+  max-width: var(--max-w);
+  margin: 0 auto;
 }
 
 /* ── Profile hero ────────────────────────────── */

@@ -243,13 +243,13 @@ document.getElementById('search-input')?.addEventListener('input', (e) => {
 // ── PORTFOLIO ─────────────────────────────────────
 async function loadPortfolio() {
   const { data: projects } = await db.from('portfolio').select('*').order('sort_order');
-  const dCont = document.getElementById('portfolio-container-right');
-  const mCont = document.getElementById('portfolio-container-mobile');
-  if (!projects || projects.length === 0) return;
-  
-  if(dCont) dCont.innerHTML = '';
-  if(mCont) mCont.innerHTML = '';
-  
+  const cont = document.getElementById('portfolio-container-page');
+  const empty = document.getElementById('portfolio-empty-page');
+  if (!projects || projects.length === 0) {
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (cont) cont.innerHTML = '';
   projects.forEach(p => {
     const html = `
       ${p.image_url ? `<img src="${p.image_url}" alt="${p.title || ''}" loading="lazy" />` : ''}
@@ -257,29 +257,22 @@ async function loadPortfolio() {
         <div class="portfolio-title">${p.title || ''}</div>
         ${p.url ? `<span style="font-size:0.75rem;color:#a0a0a0;">View →</span>` : ''}
       </div>`;
-      
-    if (dCont) {
-        const itemD = document.createElement('div');
-        itemD.className = 'portfolio-item';
-        itemD.innerHTML = html;
-        if (p.url) itemD.onclick = () => window.open(p.url, '_blank');
-        dCont.appendChild(itemD);
-    }
-    if (mCont) {
-        const itemM = document.createElement('div');
-        itemM.className = 'portfolio-item';
-        itemM.innerHTML = html;
-        if (p.url) itemM.onclick = () => window.open(p.url, '_blank');
-        mCont.appendChild(itemM);
-    }
+    const item = document.createElement('div');
+    item.className = 'portfolio-item';
+    item.innerHTML = html;
+    if (p.url) item.onclick = () => window.open(p.url, '_blank');
+    if (cont) cont.appendChild(item);
   });
 }
 
-// ── ALBUMS (SERIES) ───────────────────────────────
+// ── ALBUMS ────────────────────────────────────────
 window.openAlbumView = function(albumId, title, desc) {
    currentAlbumFilter = albumId;
    searchQuery = '';
    if(document.getElementById('search-input')) document.getElementById('search-input').value = '';
+   
+   // Navigate to home page first (so the posts feed is visible)
+   navigateTo('home');
    
    document.querySelector('.profile-hero').style.display = 'none';
    document.getElementById('album-view-header').style.display = 'block';
@@ -301,13 +294,9 @@ window.clearAlbumView = function() {
 
 async function loadAlbums() {
   const { data: albums } = await db.from('albums').select('*').order('created_at', { ascending: false });
-  const dCont = document.getElementById('albums-container-left');
-  const mCont = document.getElementById('albums-container-mobile');
+  const cont = document.getElementById('albums-container-page');
   if (!albums || albums.length === 0) return;
-  
-  if(dCont) dCont.innerHTML = '';
-  if(mCont) mCont.innerHTML = '';
-  
+  if (cont) cont.innerHTML = '';
   albums.forEach(album => {
       const html = `
         <img src="${album.cover_url || ''}" class="album-cover" loading="lazy" />
@@ -316,21 +305,13 @@ async function loadAlbums() {
             ${album.description ? `<div class="album-desc">${album.description}</div>` : ''}
         </div>
       `;
-      if(dCont) {
+      if (cont) {
           const a = document.createElement('a');
           a.className = 'album-card';
           a.href = 'javascript:void(0)';
           a.onclick = (e) => { e.preventDefault(); openAlbumView(album.id, album.title, album.description); };
           a.innerHTML = html;
-          dCont.appendChild(a);
-      }
-      if(mCont) {
-          const a = document.createElement('a');
-          a.className = 'album-card';
-          a.href = '#feed'; // jump to top on mobile
-          a.onclick = () => { openAlbumView(album.id, album.title, album.description); };
-          a.innerHTML = html;
-          mCont.appendChild(a);
+          cont.appendChild(a);
       }
   });
 }
@@ -396,10 +377,47 @@ document.addEventListener('keydown', (e) => {
     if(e.key === 'Escape') closeModal();
 });
 
+// ── PAGE ROUTER ───────────────────────────────────
+const pages = ['home', 'albums', 'work'];
+const navIds = { home: 'nav-posts', albums: 'nav-albums', work: 'nav-work' };
+
+let portfolioLoaded = false;
+let albumsLoaded = false;
+
+window.navigateTo = function(page) {
+  // Hide all pages
+  pages.forEach(p => {
+    const el = document.getElementById(`page-${p}`);
+    if (el) el.style.display = 'none';
+  });
+  // Show requested page
+  const target = document.getElementById(`page-${page}`);
+  if (target) target.style.display = '';
+
+  // Update nav active state
+  pages.forEach(p => {
+    const navEl = document.getElementById(navIds[p]);
+    if (navEl) navEl.classList.toggle('nav-link-active', p === page);
+  });
+
+  // Lazy load data on first visit
+  if (page === 'work' && !portfolioLoaded) {
+    portfolioLoaded = true;
+    loadPortfolio().catch(() => {});
+  }
+  if (page === 'albums' && !albumsLoaded) {
+    albumsLoaded = true;
+    loadAlbums().catch(() => {});
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Hide search bar on non-home pages
+  const searchBar = document.getElementById('search-input');
+  if (searchBar) searchBar.style.display = page === 'home' ? '' : 'none';
+};
+
 // ── INIT ──────────────────────────────────────────
 Promise.all([
-    loadProfile(), 
-    loadPosts(), 
-    loadPortfolio().catch(() => {}),
-    loadAlbums().catch(() => {})
+    loadProfile(),
+    loadPosts(),
 ]);

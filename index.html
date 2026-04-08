@@ -110,5 +110,36 @@
 </div>
 
 <script src="app.js"></script>
+
+<!-- Mobile bottom nav (hidden on desktop) -->
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+  <button class="mob-tab active" id="mob-posts" onclick="navigateTo('home')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span>Posts</span>
+  </button>
+  <button class="mob-tab" id="mob-albums" onclick="navigateTo('albums')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+    <span>Albums</span>
+  </button>
+  <button class="mob-tab" id="mob-work" onclick="navigateTo('work')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    <span>Work</span>
+  </button>
+  <button class="mob-tab" id="mob-search" onclick="toggleMobileSearch()">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span>Search</span>
+  </button>
+</nav>
+
+<!-- Mobile search overlay -->
+<div class="mobile-search-overlay" id="mobile-search-overlay" onclick="closeMobileSearch()">
+  <div class="mobile-search-box" onclick="event.stopPropagation()">
+    <input type="text" id="mobile-search-input" placeholder="Search posts..." autocomplete="off" />
+    <button class="mobile-search-close" onclick="closeMobileSearch()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+
 </body>
 </html>

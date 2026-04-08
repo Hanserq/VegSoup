@@ -400,6 +400,13 @@ window.navigateTo = function(page) {
     if (navEl) navEl.classList.toggle('nav-link-active', p === page);
   });
 
+  // Sync mobile bottom tab active states
+  const mobMap = { home: 'mob-posts', albums: 'mob-albums', work: 'mob-work' };
+  pages.forEach(p => {
+    const mobEl = document.getElementById(mobMap[p]);
+    if (mobEl) mobEl.classList.toggle('active', p === page);
+  });
+
   // Lazy load data on first visit
   if (page === 'work' && !portfolioLoaded) {
     portfolioLoaded = true;
@@ -411,7 +418,7 @@ window.navigateTo = function(page) {
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  // Hide search bar on non-home pages
+  // Hide search bar on non-home pages (desktop only — mobile hides via CSS)
   const searchBar = document.getElementById('search-input');
   if (searchBar) searchBar.style.display = page === 'home' ? '' : 'none';
 };
@@ -421,3 +428,57 @@ Promise.all([
     loadProfile(),
     loadPosts(),
 ]);
+
+// Scroll-hide mobile bottom nav
+(function() {
+  const nav = document.getElementById('mobile-bottom-nav');
+  if (!nav) return;
+  let lastY = 0;
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY;
+    if (y > lastY && y > 80) {
+      nav.classList.add('hidden');
+    } else {
+      nav.classList.remove('hidden');
+    }
+    lastY = y;
+  }, { passive: true });
+})();
+
+// ── MOBILE SEARCH ─────────────────────────────────
+window.toggleMobileSearch = function() {
+  const overlay = document.getElementById('mobile-search-overlay');
+  const searchBtn = document.getElementById('mob-search');
+  const isOpen = overlay.classList.contains('open');
+  if (isOpen) {
+    closeMobileSearch();
+  } else {
+    overlay.classList.add('open');
+    searchBtn.classList.add('active');
+    // Focus the input after animation
+    setTimeout(() => document.getElementById('mobile-search-input')?.focus(), 100);
+  }
+};
+
+window.closeMobileSearch = function() {
+  document.getElementById('mobile-search-overlay')?.classList.remove('open');
+  document.getElementById('mob-search')?.classList.remove('active');
+  const input = document.getElementById('mobile-search-input');
+  if (input) {
+    input.value = '';
+    input.blur();
+    // Clear search to show all posts again
+    searchQuery = '';
+    loadPosts(true);
+  }
+};
+
+// Wire mobile search input to the same search system
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('mobile-search-input')?.addEventListener('input', (e) => {
+    searchQuery = e.target.value.toLowerCase().trim();
+    navigateTo('home');
+    loadPosts(true);
+  });
+});
+

@@ -691,3 +691,137 @@ footer {
     height: auto;
   }
 }
+
+/* ── Mobile bottom nav (portfolio) ───────────────── */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Hide desktop nav-links and search on mobile — bottom nav replaces them */
+  .nav-links { display: none; }
+  .search-bar { display: none; }
+  .nav-right { display: none; }
+
+  /* Keep just the logo in the top nav */
+  .nav-inner {
+    flex-direction: row;
+    height: 50px;
+    padding: 0 1.25rem;
+  }
+
+  /* Add bottom padding so last post isn't hidden by tab bar */
+  main { padding-bottom: 80px; }
+
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 500;
+    background: rgba(10, 10, 10, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    height: 62px;
+    padding: 0 0.5rem;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    align-items: stretch;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .mobile-bottom-nav.hidden {
+    transform: translateY(100%);
+  }
+
+  .mob-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--text-3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.6rem;
+    font-weight: 500;
+    transition: color 0.15s;
+    padding: 0.25rem 0;
+  }
+
+  .mob-tab.active {
+    color: var(--text-1);
+  }
+
+  .mob-tab.active svg {
+    stroke-width: 2.5;
+  }
+
+  .mob-tab:hover {
+    color: var(--text-2);
+  }
+}
+
+/* ── Mobile search overlay ── */
+.mobile-search-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  align-items: flex-end;
+  padding-bottom: 62px;
+}
+
+.mobile-search-overlay.open {
+  display: flex;
+}
+
+.mobile-search-box {
+  width: 100%;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  animation: slideUpSearch 0.25s ease;
+}
+
+@keyframes slideUpSearch {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.mobile-search-box input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  padding: 0.75rem 1rem;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.mobile-search-box input:focus {
+  border-color: var(--accent);
+}
+
+.mobile-search-close {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}

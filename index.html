@@ -100,7 +100,9 @@
 <!-- ═══════════════ POST DETAIL MODAL ═══════════════ -->
 <div id="post-modal" class="modal">
   <div class="modal-backdrop" onclick="closeModal()"></div>
-  <div class="modal-content">
+  <div class="modal-content" id="modal-content">
+    <!-- Drag handle — visible on mobile only, swipe down here to dismiss -->
+    <div class="modal-drag-handle" id="modal-drag-handle"></div>
     <button class="modal-close" onclick="closeModal()">×</button>
     <div class="modal-layout">
         <div class="modal-media-pane" id="modal-media"></div>

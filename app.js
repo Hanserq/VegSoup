@@ -367,7 +367,19 @@ window.openModal = function(postId) {
 }
 
 window.closeModal = function() {
-    document.getElementById('post-modal').classList.remove('open');
+    const modal = document.getElementById('post-modal');
+    const content = document.getElementById('modal-content');
+    if (content) {
+        content.style.transition = 'transform 0.3s ease';
+        content.style.transform = 'translateY(100%)';
+        setTimeout(() => {
+            modal.classList.remove('open');
+            content.style.transform = '';
+            content.style.transition = '';
+        }, 280);
+    } else {
+        modal.classList.remove('open');
+    }
     document.body.style.overflow = '';
 }
 
@@ -375,6 +387,73 @@ window.closeModal = function() {
 document.addEventListener('keydown', (e) => {
     if(e.key === 'Escape') closeModal();
 });
+
+// ── SWIPE DOWN TO CLOSE MODAL (mobile) ────────────
+(function() {
+    let startY = 0;
+    let startScrollTop = 0;
+    let dragging = false;
+
+    function onTouchStart(e) {
+        const content = document.getElementById('modal-content');
+        if (!content) return;
+        startY = e.touches[0].clientY;
+        startScrollTop = content.scrollTop;
+        dragging = true;
+        content.style.transition = 'none';
+    }
+
+    function onTouchMove(e) {
+        if (!dragging) return;
+        const content = document.getElementById('modal-content');
+        if (!content) return;
+
+        const dy = e.touches[0].clientY - startY;
+
+        // Only intercept downward drag when already scrolled to top
+        if (dy > 0 && startScrollTop === 0) {
+            // Resist drag slightly (rubberbanding feel)
+            const drag = Math.pow(dy, 0.85);
+            content.style.transform = `translateY(${drag}px)`;
+            // Prevent native scroll while we're dragging the sheet
+            if (dy > 10) e.preventDefault();
+        }
+    }
+
+    function onTouchEnd(e) {
+        if (!dragging) return;
+        dragging = false;
+        const content = document.getElementById('modal-content');
+        if (!content) return;
+
+        const dy = e.changedTouches[0].clientY - startY;
+
+        if (dy > 100 && startScrollTop === 0) {
+            // Dragged far enough down — close
+            closeModal();
+        } else {
+            // Snap back
+            content.style.transition = 'transform 0.3s ease';
+            content.style.transform = '';
+            setTimeout(() => { content.style.transition = ''; }, 300);
+        }
+    }
+
+    document.addEventListener('touchstart', (e) => {
+        if (!document.getElementById('post-modal')?.classList.contains('open')) return;
+        if (e.target.closest('#post-modal')) onTouchStart(e);
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!document.getElementById('post-modal')?.classList.contains('open')) return;
+        if (e.target.closest('#post-modal')) onTouchMove(e);
+    }, { passive: false });
+
+    document.addEventListener('touchend', (e) => {
+        if (!document.getElementById('post-modal')?.classList.contains('open')) return;
+        if (e.target.closest('#post-modal')) onTouchEnd(e);
+    }, { passive: true });
+})();
 
 // ── PAGE ROUTER ───────────────────────────────────
 const pages = ['home', 'albums', 'work'];

@@ -589,6 +589,11 @@ footer {
   transition: all 0.2s;
 }
 
+/* Drag handle — mobile only */
+.modal-drag-handle {
+  display: none;
+}
+
 .modal-close:hover {
   background: var(--text-1);
   color: var(--bg);
@@ -705,13 +710,26 @@ footer {
     margin-top: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    display: block; /* single scrollable block on mobile */
+    display: block;
+    will-change: transform;
+    touch-action: pan-y; /* allow native vertical scroll inside */
   }
 
+  /* Hide X button on mobile — swipe down from handle replaces it */
   .modal-close {
-    position: fixed;
-    top: auto;
-    bottom: calc(92vh + env(safe-area-inset-bottom, 0px) - 92vh + 12px);
+    display: none;
+  }
+
+  /* Drag handle pill */
+  .modal-drag-handle {
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--text-3);
+    margin: 10px auto 4px;
+    flex-shrink: 0;
+    cursor: grab;
   }
 
   .modal-layout {

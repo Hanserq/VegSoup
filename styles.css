@@ -109,12 +109,14 @@ nav {
 
 /* ── Main container ──────────────────────────── */
 main {
-  padding: 0 1.25rem 5rem;
+  /* Removed side padding from main so profile-hero can reach absolute edges */
+  padding: 0 0 5rem;
 }
 
 .layout-container {
   max-width: var(--max-w);
   margin: 0 auto;
+  padding: 0 1.25rem; /* Applied strictly to containers instead */
 }
 
 .layout-single {
@@ -324,28 +326,39 @@ main {
 }
 
 .carousel-controls {
+  position: absolute;
+  bottom: 0.8rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  gap: 0.5rem;
-  padding: 0.625rem 0.875rem;
-  border-top: 1px solid var(--border);
-  background: var(--bg-2);
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.carousel-controls.visible {
+  opacity: 1;
 }
 
 .carousel-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.4);
   border: none;
-  cursor: pointer;
   padding: 0;
   transition: all 0.2s;
 }
 
 .carousel-dot.active {
-  background: var(--text-1);
-  width: 18px;
-  border-radius: 3px;
+  background: #ffffff;
+  transform: scale(1.15);
 }
 
 /* Body */

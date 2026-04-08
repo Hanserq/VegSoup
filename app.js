@@ -45,9 +45,18 @@ window.updateSlider = function(postId, total) {
   const slideIndex = Math.round(slider.scrollLeft / slider.clientWidth);
   const countEl = document.getElementById(`count-${postId}`);
   if (countEl) countEl.innerText = `${slideIndex + 1} / ${total}`;
-  for (let i = 0; i < total; i++) {
-      const dot = document.getElementById(`dot-${postId}-${i}`);
-      if(dot) dot.classList.toggle('active', i === slideIndex);
+  
+  const controls = slider.parentElement.querySelector('.carousel-controls');
+  if (controls) {
+      // Show dots on slide, fade out after 2s of inactivity
+      controls.classList.add('visible');
+      clearTimeout(controls.hideTimeout);
+      controls.hideTimeout = setTimeout(() => {
+          controls.classList.remove('visible');
+      }, 2000);
+      
+      const dots = controls.querySelectorAll('.carousel-dot');
+      dots.forEach((dot, i) => dot.classList.toggle('active', i === slideIndex));
   }
 };
 

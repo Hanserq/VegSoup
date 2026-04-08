@@ -78,33 +78,38 @@ async function loadProfile() {
     avatarEl.textContent = (data.name || 'C')[0].toUpperCase();
   }
 
-  // ── Apply appearance settings ──────────────────
+  // ── Apply appearance settings ────────────────────
   const root = document.documentElement;
 
   // Accent color
   if (data.accent_color) root.style.setProperty('--accent', data.accent_color);
 
-  // Site background
-  if (data.site_bg_color) root.style.setProperty('--bg', data.site_bg_color);
-
-  // Profile cover
-  const heroEl = document.getElementById('profile-hero');
-  if (heroEl && data.cover_url) {
-    heroEl.style.backgroundImage = `url(${data.cover_url})`;
-    heroEl.style.backgroundSize = 'cover';
-    heroEl.style.backgroundPosition = 'center';
+  // Site background — apply to <body> so it covers the FULL viewport like wallpaper
+  if (data.feed_bg_url) {
+    document.body.style.backgroundImage    = `url(${data.feed_bg_url})`;
+    document.body.style.backgroundSize     = 'cover';
+    document.body.style.backgroundPosition = data.feed_bg_url_pos || 'center';
+    document.body.style.backgroundAttachment = 'fixed';
+    document.body.style.backgroundRepeat  = 'no-repeat';
+  } else {
+    document.body.style.backgroundImage = '';
+    if (data.site_bg_color) root.style.setProperty('--bg', data.site_bg_color);
   }
 
-  // Section backgrounds — apply to each page container
-  function applyBg(pageId, url, color) {
-    const el = document.getElementById(pageId);
-    if (!el) return;
-    if (url) { el.style.backgroundImage = `url(${url})`; el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center'; }
-    else if (color) { el.style.backgroundColor = color; }
+  // Profile cover — targets ONLY the cover-layer INSIDE profile-hero section, not the page
+  const coverLayer = document.getElementById('profile-cover-layer');
+  const heroEl     = document.getElementById('profile-hero');
+  if (coverLayer) {
+    if (data.cover_url) {
+      const pos = data.cover_url_pos || 'center';
+      coverLayer.style.backgroundImage    = `url(${data.cover_url})`;
+      coverLayer.style.backgroundPosition = pos;
+      heroEl?.classList.add('has-cover');
+    } else {
+      coverLayer.style.backgroundImage = '';
+      heroEl?.classList.remove('has-cover');
+    }
   }
-  applyBg('page-home', data.feed_bg_url, data.feed_bg_color);
-  applyBg('page-albums', data.albums_bg_url, data.albums_bg_color);
-  applyBg('page-work', data.work_bg_url, data.work_bg_color);
 }
 
 // ── POSTS (INFINITE SCROLL) ───────────────────────
@@ -168,6 +173,8 @@ async function loadPosts(reset = false) {
   if (finalPosts.length > 0) {
       window.allPosts = [...window.allPosts, ...finalPosts];
       appendPosts(finalPosts, postPage * POSTS_PER_PAGE);
+      // Deep-link: open a post from URL hash after first batch loads
+      if (postPage === 0) checkDeepLink();
   } else if (reset && emptySearch) {
       emptySearch.style.display = 'block';
   }
@@ -369,33 +376,64 @@ window.openModal = function(postId) {
         mediaPane.style.display = 'none';
     }
 
-    // Audio — autoplay with mute toggle overlay
+    // Audio — play button approach (no autoplay)
+    // _modalAudio is created but NOT played yet
     if (post.audio_url) {
-        const isMuted = localStorage.getItem('postAudioMuted') === 'true';
         _modalAudio = new Audio(post.audio_url);
         _modalAudio.loop = post.audio_loop !== false;
-        _modalAudio.muted = isMuted;
-        _modalAudio.play().catch(() => {});
+        _modalAudio.muted = false;
+        let audioPlaying = false;
 
-        // Inject mute button overlay on media pane (or fallback to info pane top)
-        const muteTarget = hasMedia ? mediaPane : infoPane;
-        const muteBtn = document.createElement('button');
-        muteBtn.className = 'audio-mute-btn';
-        muteBtn.id = 'modal-mute-btn';
-        muteBtn.title = isMuted ? 'Unmute' : 'Mute';
-        muteBtn.innerHTML = isMuted ? muteOffSVG() : muteOnSVG();
-        muteBtn.onclick = (e) => {
-            e.stopPropagation();
-            const nowMuted = !_modalAudio.muted;
-            _modalAudio.muted = nowMuted;
-            localStorage.setItem('postAudioMuted', nowMuted);
-            muteBtn.innerHTML = nowMuted ? muteOffSVG() : muteOnSVG();
-            muteBtn.title = nowMuted ? 'Unmute' : 'Mute';
-        };
-        muteTarget.style.position = 'relative';
-        muteTarget.appendChild(muteBtn);
+        // Helper: show mute button (swap in after play starts)
+        function showMuteBtn(target) {
+            const old = document.getElementById('modal-mute-btn');
+            if (old) old.remove();
+            const muteBtn = document.createElement('button');
+            muteBtn.className = 'audio-mute-btn';
+            muteBtn.id = 'modal-mute-btn';
+            const isMuted = localStorage.getItem('postAudioMuted') === 'true';
+            _modalAudio.muted = isMuted;
+            muteBtn.innerHTML = isMuted ? muteOffSVG() : muteOnSVG();
+            muteBtn.title = isMuted ? 'Unmute' : 'Mute';
+            muteBtn.onclick = (e) => {
+                e.stopPropagation();
+                const nowMuted = !_modalAudio.muted;
+                _modalAudio.muted = nowMuted;
+                localStorage.setItem('postAudioMuted', nowMuted);
+                muteBtn.innerHTML = nowMuted ? muteOffSVG() : muteOnSVG();
+                muteBtn.title = nowMuted ? 'Unmute' : 'Mute';
+            };
+            target.style.position = 'relative';
+            target.appendChild(muteBtn);
+        }
+
+        // Helper: play audio and swap play button → mute button
+        function startAudio(playBtn, muteTarget) {
+            _modalAudio.play().catch(() => {});
+            audioPlaying = true;
+            playBtn.remove();
+            showMuteBtn(muteTarget);
+            // Coordinate with any videos in the carousel
+            wireVideoAudio();
+        }
+
+        if (hasMedia) {
+            // Centered play button over the media
+            const playBtn = document.createElement('button');
+            playBtn.className = 'audio-play-btn';
+            playBtn.id = 'modal-audio-play';
+            playBtn.title = 'Play music';
+            playBtn.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            playBtn.onclick = (e) => { e.stopPropagation(); startAudio(playBtn, mediaPane); };
+            mediaPane.style.position = 'relative';
+            mediaPane.appendChild(playBtn);
+        }
+        // The music row in the info pane is injected below after infoPane.innerHTML is set
+        window._pendingAudioForInfo = { audio: _modalAudio, hasMedia, startAudio };
+    } else {
+        window._pendingAudioForInfo = null;
     }
-    
+
     // Inject Info
     const captionHTML = post.caption ? `<div class="post-caption" style="-webkit-line-clamp: unset; white-space: pre-wrap;">${linkify(post.caption)}</div>` : '';
     const tagsHTML = (post.tags?.length > 0) ? `<div class="post-tags" style="margin-top: 1rem;">${post.tags.map(t => `<span class="tag">#${t}</span>`).join('')}</div>` : '';
@@ -428,10 +466,57 @@ window.openModal = function(postId) {
         ${tagsHTML}
         ${locationHTML ? `<div style="font-size: 0.8rem; color: var(--text-2); margin-top: 1.25rem;">📍 ${post.location}</div>` : ''}
     `;
+
+    // If audio exists but no media, inject a play row at the top of the info pane
+    if (window._pendingAudioForInfo && !hasMedia) {
+        const pa = window._pendingAudioForInfo;
+        const musicRow = document.createElement('div');
+        musicRow.className = 'audio-caption-row';
+        musicRow.id = 'audio-caption-row';
+        const playRowBtn = document.createElement('button');
+        playRowBtn.className = 'audio-caption-play-btn';
+        playRowBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play music`;
+        playRowBtn.onclick = (e) => { e.stopPropagation(); pa.startAudio(playRowBtn, infoPane); musicRow.querySelector('.audio-caption-play-btn')?.remove(); };
+        musicRow.appendChild(playRowBtn);
+        infoPane.insertBefore(musicRow, infoPane.firstChild);
+    }
     
     window.history.pushState({ modalOpen: true, postId }, '', shareUrl);
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
+}
+
+// Video ↔ audio coordination — pause audio when video plays, resume when video stops
+function wireVideoAudio() {
+    const videos = document.querySelectorAll('#modal-media video');
+    videos.forEach(vid => {
+        vid.addEventListener('play', () => {
+            if (_modalAudio && !_modalAudio.paused) _modalAudio.pause();
+        });
+        vid.addEventListener('pause', () => {
+            if (_modalAudio && _modalAudio.paused) _modalAudio.play().catch(() => {});
+        });
+        vid.addEventListener('ended', () => {
+            if (_modalAudio && _modalAudio.paused) _modalAudio.play().catch(() => {});
+        });
+    });
+
+    // Carousel scroll — if swiped to a video slide, pause audio; image slide, resume
+    const slider = document.getElementById(`media-modal-${document.querySelector('#modal-media .post-media')?.id?.replace('media-','')}`);
+    const postMedia = document.querySelector('#modal-media .post-media');
+    if (postMedia) {
+        postMedia.addEventListener('scroll', () => {
+            const idx = Math.round(postMedia.scrollLeft / postMedia.clientWidth);
+            const slides = postMedia.querySelectorAll('.media-slide');
+            const currentSlide = slides[idx];
+            const hasVideo = currentSlide?.querySelector('video');
+            if (hasVideo && !hasVideo.paused) {
+                if (_modalAudio && !_modalAudio.paused) _modalAudio.pause();
+            } else if (!hasVideo) {
+                if (_modalAudio && _modalAudio.paused) _modalAudio.play().catch(() => {});
+            }
+        }, { passive: true });
+    }
 }
 
 function muteOnSVG() {

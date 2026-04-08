@@ -130,6 +130,53 @@ main {
   align-items: center;
   border-bottom: 1px solid var(--border);
   margin-bottom: 2.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Cover image sits behind avatar + bio */
+.profile-cover-layer {
+  position: absolute;
+  inset: -1px; /* prevent hairline gaps */
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+/* Overlay so text stays readable when a cover is set */
+.profile-hero.has-cover .profile-cover-layer {
+  opacity: 1;
+}
+.profile-hero.has-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    135deg,
+    rgba(0,0,0,0.68) 0%,
+    rgba(0,0,0,0.38) 60%,
+    rgba(0,0,0,0.18) 100%
+  );
+  pointer-events: none;
+}
+
+/* Avatar, info, and any direct children sit above cover */
+.profile-hero > .avatar,
+.profile-hero > .profile-info {
+  position: relative;
+  z-index: 2;
+}
+
+/* When a cover is applied, text turns white for contrast */
+.profile-hero.has-cover .profile-name,
+.profile-hero.has-cover .profile-tagline,
+.profile-hero.has-cover .profile-about {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 
 .avatar {
@@ -417,6 +464,60 @@ main {
 .audio-mute-btn:hover {
   background: rgba(0, 0, 0, 0.8);
   transform: scale(1.1);
+}
+
+/* ── Audio play button — centered on media before user taps play ── */
+.audio-play-btn {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.2s, transform 0.15s;
+}
+
+.audio-play-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  transform: translateY(-50%) scale(1.12);
+}
+
+/* ── Audio play row — for caption-only posts ── */
+.audio-caption-row {
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.audio-caption-play-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 0.8rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.audio-caption-play-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* ── Portfolio grid ──────────────────────────── */

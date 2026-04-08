@@ -404,19 +404,47 @@ window.initPlayground = function() {
         Composite.add(pgEngine.world, box);
     }
 
-    // Skill objects (Text boxes)
+    // Skill objects (Text boxes with readable labels)
     const skills = ['Javascript', 'React', 'HTML5', 'CSS3', 'Node.js', 'Git', 'Terminal', 'Python', 'UI/UX'];
     skills.forEach((s, idx) => {
-        const sw = s.length * 12 + 20;
+        const sw = s.length * 10 + 30; // Better width calculation
         const box = Bodies.rectangle(Math.random() * width, -500 - (idx * 50), sw, 40, {
-            chamfer: { radius: 20 },
+            chamfer: { radius: 10 },
             render: {
                 fillStyle: '#7c3aed',
-                text: { content: s, color: '#ffffff', size: 16 } // custom handling in custom renderer or just color
+                strokeStyle: '#ffffff',
+                lineWidth: 2
             },
-            restitution: 0.8
+            restitution: 0.5,
+            density: 0.002,
+            friction: 0.1,
+            label: s, // Store label for custom rendering
+            isSkill: true
         });
         Composite.add(pgEngine.world, box);
+    });
+
+    // Custom Rendering for Text and Labels
+    Matter.Events.on(pgRender, 'afterRender', () => {
+        const context = pgRender.context;
+        const bodies = Composite.allBodies(pgEngine.world);
+
+        context.save();
+        context.font = 'bold 14px Inter, system-ui, sans-serif';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+
+        bodies.forEach(body => {
+            if (body.isSkill) {
+                const { x, y } = body.position;
+                context.translate(x, y);
+                context.rotate(body.angle);
+                context.fillStyle = '#ffffff';
+                context.fillText(body.label, 0, 0);
+                context.setTransform(1, 0, 0, 1, 0, 0); 
+            }
+        });
+        context.restore();
     });
 
     // Interaction
@@ -749,6 +777,11 @@ window.doCloseModalAnimation = function() {
         modal.classList.remove('open');
     }
     document.body.style.overflow = '';
+    
+    // Clear URL hash to prevent auto-opening on refresh
+    if (window.location.hash.startsWith('#post/')) {
+        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+    }
 }
 
 window.closeModal = function() {

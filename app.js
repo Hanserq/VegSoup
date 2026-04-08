@@ -235,8 +235,14 @@ function appendPosts(posts, offset) {
         </div>
       </div>`;
     container.appendChild(div);
+
+    // Observe videos for Instagram-style autoplay
+    if (window.feedVideoObserver) {
+        div.querySelectorAll('video').forEach(v => window.feedVideoObserver.observe(v));
+    }
   });
 }
+
 
 // Setup Infinite scroll intersection observer
 if (typeof IntersectionObserver !== 'undefined') {
@@ -247,7 +253,23 @@ if (typeof IntersectionObserver !== 'undefined') {
    }, { rootMargin: '400px' });
    const loader = document.getElementById('infinite-loader');
    if (loader) observer.observe(loader);
+
+   // Feed Video Autoplay Observer (Instagram-style)
+   window.feedVideoObserver = new IntersectionObserver((entries) => {
+       entries.forEach(entry => {
+           const video = entry.target;
+           // If video is inside the open modal, let the modal logic handle it
+           if (video.closest('#post-modal')) return; 
+           
+           if (entry.isIntersecting) {
+               video.play().catch(() => {});
+           } else {
+               video.pause();
+           }
+       });
+   }, { threshold: 0.5 });
 }
+
 
 // ── LIKE SYSTEM ───────────────────────────────────
 window.likePost = async function(postId, event) {
@@ -822,11 +844,19 @@ window.navigateTo = function(page) {
   // Hide all pages
   pages.forEach(p => {
     const el = document.getElementById(`page-${p}`);
-    if (el) el.style.display = 'none';
+    if (el) {
+        el.style.display = 'none';
+        el.classList.remove('page-fade-in');
+    }
   });
-  // Show requested page
+  
+  // Show requested page with fade in
   const target = document.getElementById(`page-${page}`);
-  if (target) target.style.display = '';
+  if (target) {
+      target.style.display = '';
+      void target.offsetWidth; // force browser paint reflow
+      target.classList.add('page-fade-in');
+  }
 
   // Update nav active state
   pages.forEach(p => {

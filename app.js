@@ -481,3 +481,59 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// ── SWIPE NAVIGATION (mobile) ─────────────────────
+(function() {
+  const pageOrder = ['home', 'albums', 'work'];
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let tracking = false;
+
+  function getCurrentPage() {
+    return pageOrder.find(p => {
+      const el = document.getElementById(`page-${p}`);
+      return el && el.style.display !== 'none';
+    }) || 'home';
+  }
+
+  function isBlockedTarget(el) {
+    // Don't swipe-navigate if touching: images, videos, buttons, inputs,
+    // the post modal, or the bottom nav bar
+    if (!el) return true;
+    const tag = el.tagName?.toLowerCase();
+    if (['img', 'video', 'input', 'textarea', 'button', 'a', 'select'].includes(tag)) return true;
+    if (el.closest('#post-modal')) return true;
+    if (el.closest('.mobile-bottom-nav')) return true;
+    if (el.closest('.mobile-search-overlay')) return true;
+    if (el.closest('.post-media')) return true; // carousel area
+    return false;
+  }
+
+  document.addEventListener('touchstart', (e) => {
+    if (isBlockedTarget(e.target)) { tracking = false; return; }
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    tracking = true;
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+
+    // Must be primarily horizontal and at least 55px
+    if (Math.abs(dx) < 55 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
+
+    const current = getCurrentPage();
+    const idx = pageOrder.indexOf(current);
+
+    if (dx < 0 && idx < pageOrder.length - 1) {
+      // Swipe left → next page
+      navigateTo(pageOrder[idx + 1]);
+    } else if (dx > 0 && idx > 0) {
+      // Swipe right → previous page
+      navigateTo(pageOrder[idx - 1]);
+    }
+  }, { passive: true });
+})();

@@ -1070,6 +1070,7 @@ function checkDeepLink() {
         const post = window.allPosts?.find(p => p.id === postId);
         if (post) {
             openModal(postId);
+            updateOpenGraphMeta(post);
         } else if (attempts > 0) {
             setTimeout(() => tryOpen(attempts - 1), 300);
         }
@@ -1114,3 +1115,147 @@ window.sharePost = function(postId, event) {
     }
 };// Also handle browser back/forward hash change
 window.addEventListener('hashchange', checkDeepLink);
+
+// ── OPEN GRAPH INJECTION ────────────────────────
+function updateOpenGraphMeta(post) {
+    if (!post) return;
+    
+    document.title = `${post.caption ? post.caption.slice(0, 30) + '...' : 'Shared Post'} | Hanserq`;
+    const ogImage = (post.media_urls && post.media_urls.length > 0) ? post.media_urls[0] : null;
+    const ogTitle = post.caption || 'Shared Post from Hanserq';
+    
+    const setMeta = (property, content) => {
+        let el = document.querySelector(`meta[property="${property}"]`) || document.querySelector(`meta[name="${property}"]`);
+        if (!el) {
+            el = document.createElement('meta');
+            el.setAttribute(property.includes('og:') ? 'property' : 'name', property);
+            document.head.appendChild(el);
+        }
+        el.setAttribute('content', content);
+    };
+
+    setMeta('og:title', ogTitle);
+    if (ogImage) {
+        setMeta('og:image', ogImage);
+        setMeta('twitter:image', ogImage);
+        setMeta('twitter:card', 'summary_large_image');
+    }
+}
+
+// ── PWA SERVICE WORKER ──────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(registration => {
+      console.log('SW registered with scope:', registration.scope);
+    }).catch(err => {
+      console.error('SW registration failed:', err);
+    });
+  });
+}
+
+// ── GUESTBOOK / REACTIONS ───────────────────────
+let guestbookLoaded = false;
+
+window.toggleGuestbook = function() {
+    const body = document.getElementById('guestbook-body');
+    body.classList.toggle('open');
+    if (body.classList.contains('open') && !guestbookLoaded) {
+        loadGuestbook();
+    }
+};
+
+async function loadGuestbook() {
+    const list = document.getElementById('guestbook-list');
+    const countEl = document.getElementById('guestbook-count');
+    try {
+        const { data, error } = await db.from('guestbook').select('*').order('created_at', { ascending: false }).limit(50);
+        if (error) throw error;
+        
+        guestbookLoaded = true;
+        countEl.innerText = data.length || 0;
+        
+        if (!data || data.length === 0) {
+            list.innerHTML = `<div class="guestbook-loading">No notes yet. Be the first!</div>`;
+            return;
+        }
+
+        list.innerHTML = data.map(entry => {
+            const timeAgo = getTimeAgo(new Date(entry.created_at));
+            return `
+              <div class="guestbook-item">
+                  <div class="guestbook-item-header">
+                      <span class="guestbook-item-author">${escapeHTML(entry.author_name || 'Anonymous')}</span>
+                      <span class="guestbook-item-time">${timeAgo}</span>
+                  </div>
+                  <div class="guestbook-item-msg">${escapeHTML(entry.message)}</div>
+              </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('Failed to load guestbook:', e);
+        list.innerHTML = `<div class="guestbook-loading">Failed to load notes.</div>`;
+    }
+}
+
+// Initial count fetch (lightweight)
+async function initGuestbookCount() {
+    const { count } = await db.from('guestbook').select('*', { count: 'exact', head: true });
+    if (count !== null) {
+        document.getElementById('guestbook-count').innerText = count;
+    }
+}
+document.addEventListener('DOMContentLoaded', initGuestbookCount);
+
+const gbForm = document.getElementById('guestbook-form');
+if (gbForm) {
+    gbForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('gb-submit');
+        const nameInput = document.getElementById('gb-name');
+        const msgInput = document.getElementById('gb-msg');
+        
+        const name = nameInput.value.trim() || 'Anonymous';
+        const msg = msgInput.value.trim();
+        if (!msg) return;
+
+        btn.disabled = true;
+        btn.innerText = '...';
+
+        try {
+            const { error } = await db.from('guestbook').insert([{ author_name: name, message: msg }]);
+            if (error) throw error;
+            
+            msgInput.value = '';
+            await loadGuestbook(); // refresh
+        } catch (err) {
+            alert('Could not post note: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = '→';
+        }
+    });
+}
+
+// Helper functions for Guestbook
+function getTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + "y ago";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + "mo ago";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + "d ago";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + "h ago";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + "m ago";
+    return Math.floor(seconds) + "s ago";
+}
+
+function escapeHTML(str) {
+    if (!str) return '';
+    return str.replace(/[&<>'"]/g, tag => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    }[tag] || tag));
+}
+

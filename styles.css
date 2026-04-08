@@ -1212,3 +1212,137 @@ footer {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
 }
+
+/* ── GUESTBOOK UI ──────────────────────────── */
+.guestbook-section {
+  margin-top: 1.5rem;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.guestbook-header {
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-1);
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.guestbook-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.guestbook-count {
+  background: var(--accent);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+}
+
+.guestbook-body {
+  display: none;
+  border-top: 1px solid var(--border);
+}
+
+.guestbook-body.open {
+  display: block;
+}
+
+.guestbook-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.guestbook-item {
+  background: var(--bg);
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.guestbook-item-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+}
+
+.guestbook-item-author {
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.guestbook-item-time {
+  font-size: 0.7rem;
+  color: var(--text-3);
+}
+
+.guestbook-item-msg {
+  color: var(--text-2);
+  line-height: 1.4;
+}
+
+.guestbook-loading {
+  text-align: center;
+  color: var(--text-3);
+  font-size: 0.8rem;
+  padding: 1rem 0;
+}
+
+.guestbook-form {
+  display: flex;
+  padding: 0.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  gap: 0.5rem;
+}
+
+.guestbook-form input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.guestbook-form input:focus {
+  border-color: var(--accent);
+}
+
+#gb-name {
+  width: 90px;
+}
+
+#gb-msg {
+  flex: 1;
+}
+
+.guestbook-form button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.guestbook-form button:active {
+  transform: scale(0.9);
+}

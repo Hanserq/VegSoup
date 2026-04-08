@@ -362,12 +362,14 @@ window.openModal = function(postId) {
         ${locationHTML ? `<div style="font-size: 0.8rem; color: var(--text-2); margin-top: 1.25rem;">📍 ${post.location}</div>` : ''}
     `;
     
+    window.history.pushState({ modalOpen: true }, '');
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 }
 
-window.closeModal = function() {
+window.doCloseModalAnimation = function() {
     const modal = document.getElementById('post-modal');
+    if (!modal || !modal.classList.contains('open')) return;
     const content = document.getElementById('modal-content');
     if (content) {
         content.style.transition = 'transform 0.3s ease';
@@ -381,6 +383,18 @@ window.closeModal = function() {
         modal.classList.remove('open');
     }
     document.body.style.overflow = '';
+}
+
+window.closeModal = function() {
+    const modal = document.getElementById('post-modal');
+    if (!modal || !modal.classList.contains('open')) return;
+    
+    // Use history.back() if we pushed a state, so the app remains perfectly historically synced
+    if (window.history.state && window.history.state.modalOpen) {
+        window.history.back(); 
+    } else {
+        window.doCloseModalAnimation();
+    }
 }
 
 // Esc key to close modal
@@ -552,6 +566,61 @@ window.closeMobileSearch = function() {
 };
 
 // Wire mobile search input to the same search system
+// ── PWA HARDWARE BACK BUTTON / GESTURE HANDLING ─────
+
+let exitTimeout = null;
+
+function showToast(msg) {
+  let t = document.getElementById('app-toast');
+  if (!t) {
+      t = document.createElement('div');
+      t.id = 'app-toast';
+      t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(30,30,30,0.95);color:#fff;padding:10px 18px;border-radius:24px;font-size:0.85rem;z-index:9999;opacity:0;transition:opacity 0.2s;pointer-events:none;white-space:nowrap;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);';
+      document.body.appendChild(t);
+  }
+  t.innerText = msg;
+  t.style.opacity = '1';
+  setTimeout(() => { t.style.opacity = '0'; }, 2000);
+}
+
+window.addEventListener('popstate', (e) => {
+    // 1. Post modal closure check
+    const modal = document.getElementById('post-modal');
+    if (modal && modal.classList.contains('open') && (!e.state || !e.state.modalOpen)) {
+        window.doCloseModalAnimation();
+        // If we also dropped back to the app root, we just swallowed the back action for the modal.
+        if (e.state && e.state.appActive) return;
+    }
+
+    // 2. Double-back-to-exit protection for the root application
+    if (e.state && e.state.appRoot) {
+        if (exitTimeout) {
+            clearTimeout(exitTimeout);
+            window.history.back(); // Physically exit the app
+        } else {
+            showToast("Press back again to exit");
+            // Push active state back so we explicitly stay inside the PWA
+            window.history.pushState({ appActive: true }, '');
+            exitTimeout = setTimeout(() => {
+                exitTimeout = null;
+            }, 2000);
+        }
+    }
+});
+
+// Initialize history tracking
+document.addEventListener('DOMContentLoaded', () => {
+    // Inject the root and active states so we can catch when the user tries to exit completely
+    if (!window.history.state || (!window.history.state.appActive && !window.history.state.appRoot)) {
+        window.history.replaceState({ appRoot: true }, '');
+        window.history.pushState({ appActive: true }, '');
+    }
+    
+    // Setup initial fetch
+    fetchProfile();
+    loadPosts();
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('mobile-search-input')?.addEventListener('input', (e) => {
     searchQuery = e.target.value.toLowerCase().trim();

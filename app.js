@@ -19,7 +19,16 @@ function buildCarousel(mediaUrls, mediaTypes, postId) {
   mediaUrls.forEach((url, i) => {
     html += `<div class="media-slide">`;
     if (mediaTypes[i] === 'video') {
-      html += `<video src="${url}" controls playsinline muted></video>`;
+      html += `
+        <div class="custom-video-wrapper" onclick="toggleVideoState(this, event)">
+          <video src="${url}" playsinline loop class="feed-video" preload="metadata"></video>
+          <div class="video-play-icon" style="display: none;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+          <button class="video-mute-toggle" onclick="toggleVideoMute(this, event)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-unmute"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          </button>
+        </div>`;
     } else {
       html += `<img src="${url}" alt="" loading="lazy" />`;
     }
@@ -270,6 +279,40 @@ if (typeof IntersectionObserver !== 'undefined') {
    }, { threshold: 0.5 });
 }
 
+
+// ── INSTAGRAM VIDEO CONTROLS ───────────────────────
+window.toggleVideoState = function(el, e) {
+    // Only toggle play/pause if the click was not on the mute button
+    if (e && e.target.closest('.video-mute-toggle')) return;
+    
+    const video = el.querySelector('video');
+    const playIcon = el.querySelector('.video-play-icon');
+    if (!video) return;
+
+    if (video.paused) {
+        video.play().catch(() => {});
+        if(playIcon) playIcon.style.display = 'none';
+    } else {
+        video.pause();
+        if(playIcon) playIcon.style.display = 'flex';
+    }
+};
+
+window.toggleVideoMute = function(btn, e) {
+    if(e) e.stopPropagation();
+    const wrapper = btn.closest('.custom-video-wrapper');
+    if (!wrapper) return;
+    const video = wrapper.querySelector('video');
+    if (!video) return;
+
+    video.muted = !video.muted;
+    
+    if (video.muted) {
+        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-mute"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`;
+    } else {
+        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-unmute"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+    }
+};
 
 // ── LIKE SYSTEM ───────────────────────────────────
 window.likePost = async function(postId, event) {

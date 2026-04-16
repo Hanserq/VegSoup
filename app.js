@@ -12,7 +12,7 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function buildCarousel(mediaUrls, mediaTypes, postId) {
+function buildCarousel(mediaUrls, mediaTypes, postId, audioUrl, audioLoop) {
   if (!mediaUrls || mediaUrls.length === 0) return '';
   let html = `<div class="post-media-wrapper">`;
   html += `<div class="post-media" id="media-${postId}" onscroll="updateSlider('${postId}', ${mediaUrls.length})">`;
@@ -35,6 +35,16 @@ function buildCarousel(mediaUrls, mediaTypes, postId) {
     html += `</div>`;
   });
   html += `</div>`;
+  
+  // Attach background audio and mute toggle if audio exists
+  if (audioUrl && !mediaTypes.includes('video')) {
+    html += `
+      <audio src="${audioUrl}" class="feed-video feed-bg-audio" ${audioLoop !== false ? 'loop' : ''} preload="metadata"></audio>
+      <button class="video-mute-toggle audio-bg-mute" onclick="toggleVideoMute(this, event)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-unmute"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      </button>
+    `;
+  }
   
   if (mediaUrls.length > 1) {
     html += `<span class="media-count" id="count-${postId}">1 / ${mediaUrls.length}</span>`;
@@ -218,7 +228,18 @@ function appendPosts(posts, offset) {
     div.className = 'post';
     div.style.animationDelay = `${(i % POSTS_PER_PAGE) * 0.05}s`;
 
-    const mediaHTML = buildCarousel(post.media_urls || [], post.media_types || [], post.id);
+    const mediaHTML = buildCarousel(post.media_urls || [], post.media_types || [], post.id, post.audio_url, post.audio_loop);
+    
+    // Standalone audio if no images/videos
+    let audioStandaloneHTML = '';
+    if (post.audio_url && (!post.media_urls || post.media_urls.length === 0)) {
+        audioStandaloneHTML = `
+            <div class="post-audio-standalone" onclick="event.stopPropagation()" style="margin: 0.5rem 1rem;">
+                <audio src="${post.audio_url}" controls ${post.audio_loop !== false ? 'loop' : ''} style="width: 100%; border-radius: 12px;"></audio>
+            </div>
+        `;
+    }
+
     const captionHTML = post.caption ? `<div class="post-caption">${linkify(post.caption)}</div>` : '';
     const tagsHTML = (post.tags?.length > 0)
       ? `<div class="post-tags">${post.tags.map(t => `<span class="tag">#${t}</span>`).join('')}</div>`
@@ -229,6 +250,7 @@ function appendPosts(posts, offset) {
 
     div.innerHTML = `
       ${mediaHTML}
+      ${audioStandaloneHTML}
       <div class="post-body" onclick="openModal('${post.id}')" style="cursor: pointer;">
         ${captionHTML}
         ${tagsHTML}
@@ -244,9 +266,9 @@ function appendPosts(posts, offset) {
       </div>`;
     container.appendChild(div);
 
-    // Observe videos for Instagram-style autoplay
+    // Observe videos and background audio for Instagram-style autoplay
     if (window.feedVideoObserver) {
-        div.querySelectorAll('video').forEach(v => window.feedVideoObserver.observe(v));
+        div.querySelectorAll('.feed-video').forEach(v => window.feedVideoObserver.observe(v));
     }
   });
 }
@@ -325,8 +347,8 @@ window.toggleVideoState = function(el, e) {
     }
 };
 
-window.updateVideoMuteIcon = function(video, isMuted) {
-    const btn = video.parentElement.querySelector('.video-mute-toggle');
+window.updateVideoMuteIcon = function(media, isMuted) {
+    const btn = media.parentElement.querySelector('.video-mute-toggle');
     if (!btn) return;
     if (isMuted) {
         btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-mute"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`;
@@ -337,18 +359,25 @@ window.updateVideoMuteIcon = function(video, isMuted) {
 
 window.toggleVideoMute = function(btn, e) {
     if(e) e.stopPropagation();
-    const wrapper = btn.closest('.custom-video-wrapper');
-    if (!wrapper) return;
-    const video = wrapper.querySelector('video');
-    if (!video) return;
+    
+    let wrapper, media;
+    if (btn.classList.contains('audio-bg-mute')) {
+        wrapper = btn.closest('.post-media-wrapper');
+        media = wrapper ? wrapper.querySelector('.feed-bg-audio') : null;
+    } else {
+        wrapper = btn.closest('.custom-video-wrapper');
+        media = wrapper ? wrapper.querySelector('video') : null;
+    }
+    
+    if (!media) return;
 
-    // Toggle local video mute
-    video.muted = !video.muted;
+    // Toggle local mute
+    media.muted = !media.muted;
     
     // Update global reference so the rest of the feed matches this user's preference
-    window.globalVideoMuted = video.muted;
+    window.globalVideoMuted = media.muted;
     
-    // Update all matching current videos on screen to the new preference
+    // Update all matching current media on screen to the new preference
     document.querySelectorAll('.feed-video').forEach(v => {
         v.muted = window.globalVideoMuted;
         window.updateVideoMuteIcon(v, window.globalVideoMuted);

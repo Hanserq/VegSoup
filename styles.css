@@ -318,6 +318,20 @@ main {
   position: relative;
 }
 
+.feed-bg-audio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.audio-bg-mute {
+  bottom: 12px;
+  right: 12px;
+  margin: 0;
+}
+
 .post-media {
   display: flex;
   overflow-x: auto;

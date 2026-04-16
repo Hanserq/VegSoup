@@ -21,7 +21,7 @@ function buildCarousel(mediaUrls, mediaTypes, postId) {
     if (mediaTypes[i] === 'video') {
       html += `
         <div class="custom-video-wrapper" onclick="toggleVideoState(this, event)">
-          <video src="${url}" playsinline loop class="feed-video" preload="metadata"></video>
+          <video src="${url}" playsinline loop class="feed-video" preload="metadata" onplay="window.onVideoPlay(this)" onpause="window.onVideoPause(this)"></video>
           <div class="video-play-icon" style="display: none;">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
           </div>
@@ -217,7 +217,6 @@ function appendPosts(posts, offset) {
     const div = document.createElement('div');
     div.className = 'post';
     div.style.animationDelay = `${(i % POSTS_PER_PAGE) * 0.05}s`;
-    div.onclick = () => openModal(post.id);
 
     const mediaHTML = buildCarousel(post.media_urls || [], post.media_types || [], post.id);
     const captionHTML = post.caption ? `<div class="post-caption">${linkify(post.caption)}</div>` : '';
@@ -230,7 +229,7 @@ function appendPosts(posts, offset) {
 
     div.innerHTML = `
       ${mediaHTML}
-      <div class="post-body">
+      <div class="post-body" onclick="openModal('${post.id}')" style="cursor: pointer;">
         ${captionHTML}
         ${tagsHTML}
         <div class="post-meta">
@@ -281,20 +280,34 @@ if (typeof IntersectionObserver !== 'undefined') {
 
 
 // ── INSTAGRAM VIDEO CONTROLS ───────────────────────
+window.onVideoPlay = function(video) {
+    // Hide the play icon
+    const playIcon = video.parentElement.querySelector('.video-play-icon');
+    if (playIcon) playIcon.style.display = 'none';
+
+    // Pause all other feed videos
+    document.querySelectorAll('.feed-video').forEach(v => {
+        if (v !== video && !v.paused) v.pause();
+    });
+};
+
+window.onVideoPause = function(video) {
+    // Show the play icon
+    const playIcon = video.parentElement.querySelector('.video-play-icon');
+    if (playIcon) playIcon.style.display = 'flex';
+};
+
 window.toggleVideoState = function(el, e) {
     // Only toggle play/pause if the click was not on the mute button
     if (e && e.target.closest('.video-mute-toggle')) return;
     
     const video = el.querySelector('video');
-    const playIcon = el.querySelector('.video-play-icon');
     if (!video) return;
 
     if (video.paused) {
         video.play().catch(() => {});
-        if(playIcon) playIcon.style.display = 'none';
     } else {
         video.pause();
-        if(playIcon) playIcon.style.display = 'flex';
     }
 };
 

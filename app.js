@@ -262,7 +262,9 @@ if (typeof IntersectionObserver !== 'undefined') {
    const loader = document.getElementById('infinite-loader');
    if (loader) observer.observe(loader);
 
-   // Feed Video Autoplay Observer (Instagram-style)
+   // ── INSTAGRAM VIDEO CONTROLS & AUTOPLAY ───────────────
+   window.globalVideoMuted = true; // Mobile OS default enforces muted auto-play 
+
    window.feedVideoObserver = new IntersectionObserver((entries) => {
        entries.forEach(entry => {
            const video = entry.target;
@@ -270,7 +272,19 @@ if (typeof IntersectionObserver !== 'undefined') {
            if (video.closest('#post-modal')) return; 
            
            if (entry.isIntersecting) {
-               video.play().catch(() => {});
+               video.muted = window.globalVideoMuted;
+               window.updateVideoMuteIcon(video, window.globalVideoMuted);
+
+               const p = video.play();
+               if (p !== undefined) {
+                   p.catch(err => {
+                       // Silent fallback: Mobile blocks unmuted autoplay without interaction
+                       window.globalVideoMuted = true;
+                       video.muted = true;
+                       window.updateVideoMuteIcon(video, true);
+                       video.play().catch(() => {});
+                   });
+               }
            } else {
                video.pause();
            }
@@ -311,6 +325,16 @@ window.toggleVideoState = function(el, e) {
     }
 };
 
+window.updateVideoMuteIcon = function(video, isMuted) {
+    const btn = video.parentElement.querySelector('.video-mute-toggle');
+    if (!btn) return;
+    if (isMuted) {
+        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-mute"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`;
+    } else {
+        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-unmute"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+    }
+};
+
 window.toggleVideoMute = function(btn, e) {
     if(e) e.stopPropagation();
     const wrapper = btn.closest('.custom-video-wrapper');
@@ -318,13 +342,17 @@ window.toggleVideoMute = function(btn, e) {
     const video = wrapper.querySelector('video');
     if (!video) return;
 
+    // Toggle local video mute
     video.muted = !video.muted;
     
-    if (video.muted) {
-        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-mute"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`;
-    } else {
-        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-unmute"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
-    }
+    // Update global reference so the rest of the feed matches this user's preference
+    window.globalVideoMuted = video.muted;
+    
+    // Update all matching current videos on screen to the new preference
+    document.querySelectorAll('.feed-video').forEach(v => {
+        v.muted = window.globalVideoMuted;
+        window.updateVideoMuteIcon(v, window.globalVideoMuted);
+    });
 };
 
 // ── LIKE SYSTEM ───────────────────────────────────

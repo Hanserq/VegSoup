@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vegsoup-portfolio-v1';
+const CACHE_NAME = 'vegsoup-portfolio-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

@@ -212,56 +212,54 @@ async function loadPosts(reset = false) {
   const container = document.getElementById('posts-container');
   const loader = document.getElementById('infinite-loader');
   const emptySearch = document.getElementById('empty-search');
-  
+
   if (reset) {
     postPage = 0;
     hasMorePosts = true;
     container.innerHTML = '';
     window.allPosts = [];
-    if(emptySearch) emptySearch.style.display = 'none';
-    if(loader) loader.style.display = 'block';
+    if (emptySearch) emptySearch.style.display = 'none';
+    if (loader) loader.style.display = 'block';
   }
 
-  let query = db.from('posts').select('*').order('created_at', { ascending: false });
-  if (currentAlbumFilter) {
-      query = query.eq('album_id', currentAlbumFilter);
-  }
-  
+  // Sort pinned first, then newest
+  let query = db.from('posts').select('*')
+    .eq('published', true)
+    .is('deleted_at', null)
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (currentAlbumFilter) query = query.eq('album_id', currentAlbumFilter);
+
   const { data: posts, error } = await query.range(postPage * POSTS_PER_PAGE, (postPage + 1) * POSTS_PER_PAGE - 1);
   fetchingPosts = false;
-  
+
   if (error || !posts || posts.length === 0) {
     hasMorePosts = false;
-    if(loader) loader.style.display = 'none';
-    if (reset && emptySearch) {
-         emptySearch.style.display = 'block';
-    }
+    if (loader) loader.style.display = 'none';
+    if (reset && window.allPosts.length === 0 && emptySearch) emptySearch.style.display = 'block';
     return;
   }
 
   hasMorePosts = posts.length === POSTS_PER_PAGE;
-  if(loader) loader.style.display = hasMorePosts ? 'block' : 'none';
-  
-  const publishedPosts = posts.filter(p => p.published !== false);
-  
-  // local text search filter if needed
-  let finalPosts = publishedPosts;
+  if (loader) loader.style.display = hasMorePosts ? 'block' : 'none';
+
+  let finalPosts = posts;
   if (searchQuery) {
-     finalPosts = publishedPosts.filter(post => {
-        const inC = post.caption?.toLowerCase().includes(searchQuery);
-        const inL = post.location?.toLowerCase().includes(searchQuery);
-        const inT = post.tags?.some(t => t.toLowerCase().includes(searchQuery));
-        return inC || inL || inT;
-     });
+    finalPosts = posts.filter(post => {
+      const inC = post.caption?.toLowerCase().includes(searchQuery);
+      const inL = post.location?.toLowerCase().includes(searchQuery);
+      const inT = post.tags?.some(t => t.toLowerCase().includes(searchQuery));
+      return inC || inL || inT;
+    });
   }
 
   if (finalPosts.length > 0) {
-      window.allPosts = [...window.allPosts, ...finalPosts];
-      appendPosts(finalPosts, postPage * POSTS_PER_PAGE);
-      // Deep-link: open a post from URL hash after first batch loads
-      if (postPage === 0) checkDeepLink();
+    window.allPosts = [...window.allPosts, ...finalPosts];
+    appendGridPosts(finalPosts);
+    if (postPage === 0) checkDeepLink();
   } else if (reset && emptySearch) {
-      emptySearch.style.display = 'block';
+    emptySearch.style.display = 'block';
   }
   postPage++;
 }
@@ -278,56 +276,61 @@ function linkify(text) {
   });
 }
 
-function appendPosts(posts, offset) {
-  const container = document.getElementById('posts-container');
-  posts.forEach((post, i) => {
-    const div = document.createElement('div');
-    div.className = 'post';
-    div.style.animationDelay = `${(i % POSTS_PER_PAGE) * 0.05}s`;
+function appendGridPosts(posts) {
+  // Ensure grid wrapper exists
+  let grid = document.getElementById('posts-grid');
+  if (!grid) {
+    const container = document.getElementById('posts-container');
+    grid = document.createElement('div');
+    grid.id = 'posts-grid';
+    grid.className = 'posts-photo-grid';
+    container.appendChild(grid);
+  }
 
-    const mediaHTML = buildCarousel(post.media_urls || [], post.media_types || [], post.id, post.audio_url, post.audio_loop);
-    
-    // Standalone audio if no images/videos
-    let audioStandaloneHTML = '';
-    if (post.audio_url && (!post.media_urls || post.media_urls.length === 0)) {
-        audioStandaloneHTML = `
-            <div class="post-audio-standalone" onclick="event.stopPropagation()" style="margin: 0.5rem 1rem;">
-                <audio src="${post.audio_url}" controls ${post.audio_loop !== false ? 'loop' : ''} style="width: 100%; border-radius: 12px;"></audio>
-            </div>
-        `;
+  posts.forEach((post, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'photo-grid-cell';
+    cell.style.animationDelay = `${(i % POSTS_PER_PAGE) * 0.04}s`;
+    cell.setAttribute('role', 'button');
+    cell.tabIndex = 0;
+    cell.onclick = () => openModal(post.id);
+    cell.onkeydown = e => { if (e.key === 'Enter') openModal(post.id); };
+
+    const thumb = post.media_urls?.[0];
+    const isVideo = post.media_types?.[0] === 'video';
+    const isMulti = post.media_urls?.length > 1;
+    const isPinned = post.is_pinned;
+
+    let inner = '';
+    if (thumb) {
+      if (isVideo) {
+        inner += `<video src="${thumb}" class="grid-cell-thumb" muted playsinline preload="none"></video>`;
+      } else {
+        inner += `<img src="${thumb}" alt="" class="grid-cell-thumb" loading="lazy" />`;
+      }
+    } else {
+      inner += `<div class="grid-cell-text-thumb">${post.caption ? post.caption.slice(0, 80) : ''}</div>`;
     }
 
-    const captionHTML = post.caption ? `<div class="post-caption">${linkify(post.caption)}</div>` : '';
-    const tagsHTML = (post.tags?.length > 0)
-      ? `<div class="post-tags">${post.tags.map(t => `<span class="tag">#${t}</span>`).join('')}</div>`
-      : '';
-    const locationHTML = post.location ? `<span class="post-location">${post.location}</span>` : '';
-    const likes = post.likes_count || 0;
-    const isLiked = localStorage.getItem(`liked_${post.id}`) === 'true';
+    // Badges
+    let badges = '';
+    if (isPinned) badges += `<span class="grid-cell-badge pin">📌</span>`;
+    if (isMulti)  badges += `<span class="grid-cell-badge multi"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><rect x="2" y="7" width="15" height="15" rx="2"/><path d="M17 2h2a2 2 0 0 1 2 2v2" stroke="white" stroke-width="2" fill="none"/></svg></span>`;
+    if (isVideo && !isMulti) badges += `<span class="grid-cell-badge video"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>`;
 
-    div.innerHTML = `
-      ${mediaHTML}
-      ${audioStandaloneHTML}
-      <div class="post-body" onclick="openModal('${post.id}')" style="cursor: pointer;">
-        ${captionHTML}
-        ${tagsHTML}
-        <div class="post-meta">
-            <div class="post-meta-left">
-                ${formatDate(post.created_at)}${locationHTML ? ' · ' + locationHTML : ''}
-            </div>
-            <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likePost('${post.id}', event)">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                <span class="like-count">${likes}</span>
-            </button>
-        </div>
-      </div>`;
-    container.appendChild(div);
+    cell.innerHTML = inner + (badges ? `<div class="grid-cell-badges">${badges}</div>` : '');
+    grid.appendChild(cell);
 
-    // Observe videos and background audio for Instagram-style autoplay
-    if (window.feedVideoObserver) {
-        div.querySelectorAll('.feed-video').forEach(v => window.feedVideoObserver.observe(v));
+    // Observe for autoplay if video
+    if (isVideo && window.feedVideoObserver) {
+      cell.querySelectorAll('video').forEach(v => window.feedVideoObserver.observe(v));
     }
   });
+}
+
+// Keep appendPosts as legacy (used nowhere now but safe to keep)
+function appendPosts(posts, offset) {
+  appendGridPosts(posts);
 }
 
 

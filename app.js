@@ -87,32 +87,45 @@ window.scrollToSlide = function(postId, index, event) {
 };
 
 // ── PROFILE ───────────────────────────────────────
+let _profileData = null;
+
 async function loadProfile() {
   const { data } = await db.from('profile').select('*').eq('id', 1).single();
   if (!data) return;
+  _profileData = data;
 
   document.title = data.name || 'My Site';
-  const navNameEl = document.getElementById('nav-name');
-  if (navNameEl) navNameEl.textContent = data.name || '';
-  document.getElementById('profile-name').textContent  = data.name || '';
-  document.getElementById('profile-tagline').textContent = data.tagline || '';
-  document.getElementById('profile-about').textContent  = data.about || '';
-  document.getElementById('footer-name').textContent   = `© ${new Date().getFullYear()} ${data.name || ''}`;
 
+  // Nav logo
+  const navLogoEl = document.getElementById('nav-logo-link');
+  if (navLogoEl) navLogoEl.textContent = data.name || '';
+
+  // Hero
+  const nameEl = document.getElementById('profile-name');
+  const taglineEl = document.getElementById('profile-tagline');
+  const aboutShortEl = document.getElementById('profile-about-short');
+  if (nameEl) nameEl.textContent = data.name || '';
+  if (taglineEl) taglineEl.textContent = data.tagline || '';
+  if (aboutShortEl) aboutShortEl.textContent = data.about ? data.about.slice(0, 100) + (data.about.length > 100 ? '…' : '') : '';
+
+  // Footer
+  const footerEl = document.getElementById('footer-name');
+  if (footerEl) footerEl.textContent = `© ${new Date().getFullYear()} ${data.name || ''}`;
+
+  // Avatar
   const avatarEl = document.getElementById('avatar-el');
-  if (data.avatar_url) {
-    avatarEl.innerHTML = `<img src="${data.avatar_url}" alt="${data.name}" />`;
-  } else {
-    avatarEl.textContent = (data.name || 'C')[0].toUpperCase();
+  if (avatarEl) {
+    if (data.avatar_url) {
+      avatarEl.innerHTML = `<img src="${data.avatar_url}" alt="${data.name}" />`;
+    } else {
+      avatarEl.textContent = (data.name || 'C')[0].toUpperCase();
+    }
   }
 
   // ── Apply appearance settings ────────────────────
   const root = document.documentElement;
-
-  // Accent color
   if (data.accent_color) root.style.setProperty('--accent', data.accent_color);
 
-  // Site background — apply to <body> so it covers the FULL viewport like wallpaper
   if (data.feed_bg_url) {
     document.body.style.backgroundImage    = `url(${data.feed_bg_url})`;
     document.body.style.backgroundSize     = 'cover';
@@ -124,20 +137,64 @@ async function loadProfile() {
     if (data.site_bg_color) root.style.setProperty('--bg', data.site_bg_color);
   }
 
-  // Profile cover — targets ONLY the cover-layer INSIDE profile-hero section, not the page
   const coverLayer = document.getElementById('profile-cover-layer');
   const heroEl     = document.getElementById('profile-hero');
   if (coverLayer) {
     if (data.cover_url) {
-      const pos = data.cover_url_pos || 'center';
       coverLayer.style.backgroundImage    = `url(${data.cover_url})`;
-      coverLayer.style.backgroundPosition = pos;
+      coverLayer.style.backgroundPosition = data.cover_url_pos || 'center';
       heroEl?.classList.add('has-cover');
     } else {
       coverLayer.style.backgroundImage = '';
       heroEl?.classList.remove('has-cover');
     }
   }
+
+  // ── Render About page ────────────────────────────
+  renderAboutPage(data);
+
+  // ── Render Hobbies page ──────────────────────────
+  renderHobbiesPage(data.hobbies || []);
+}
+
+function renderAboutPage(data) {
+  const cont = document.getElementById('about-content');
+  if (!cont) return;
+  const avatarHTML = data.avatar_url
+    ? `<img src="${data.avatar_url}" alt="${data.name || ''}" />`
+    : `<span>${(data.name || 'H')[0].toUpperCase()}</span>`;
+  cont.innerHTML = `
+    <div class="about-hero">
+      <div class="about-avatar-lg">${avatarHTML}</div>
+      <div class="about-hero-text">
+        <div class="about-name">${data.name || ''}</div>
+        <div class="about-tagline">${data.tagline || ''}</div>
+      </div>
+    </div>
+    ${data.about ? `
+    <div class="about-bio-block">
+      <div class="about-bio-label">About</div>
+      <div class="about-bio-text">${data.about}</div>
+    </div>` : ''}
+  `;
+}
+
+function renderHobbiesPage(hobbies) {
+  const cont = document.getElementById('hobbies-container');
+  const empty = document.getElementById('hobbies-empty');
+  if (!cont) return;
+  if (!hobbies || hobbies.length === 0) {
+    cont.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+  cont.innerHTML = hobbies.map(h => `
+    <div class="hobby-card">
+      <div class="hobby-emoji">${h.emoji || '✨'}</div>
+      <div class="hobby-name">${h.name || ''}</div>
+      ${h.description ? `<div class="hobby-desc">${h.description}</div>` : ''}
+    </div>
+  `).join('');
 }
 
 // ── POSTS (INFINITE SCROLL) ───────────────────────
@@ -628,22 +685,21 @@ async function loadPortfolio() {
   const cont = document.getElementById('portfolio-container-page');
   const empty = document.getElementById('portfolio-empty-page');
   if (!projects || projects.length === 0) {
-    if (empty) empty.style.display = 'block';
+    if (empty) empty.style.display = 'flex';
     return;
   }
   if (cont) cont.innerHTML = '';
   projects.forEach(p => {
-    const html = `
-      ${p.image_url ? `<img src="${p.image_url}" alt="${p.title || ''}" loading="lazy" />` : ''}
-      <div class="portfolio-overlay">
-        <div class="portfolio-title">${p.title || ''}</div>
-        ${p.url ? `<span style="font-size:0.75rem;color:#a0a0a0;">View →</span>` : ''}
+    const card = document.createElement('div');
+    card.className = 'portfolio-card';
+    if (p.url) { card.style.cursor = 'pointer'; card.onclick = () => window.open(p.url, '_blank'); }
+    card.innerHTML = `
+      ${p.image_url ? `<img src="${p.image_url}" alt="${p.title || ''}" loading="lazy" />` : `<div class="portfolio-card-no-img">${p.title || ''}</div>`}
+      <div class="portfolio-card-overlay">
+        <div class="portfolio-card-title">${p.title || ''}</div>
+        ${p.url ? `<div class="portfolio-card-link"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> View</div>` : ''}
       </div>`;
-    const item = document.createElement('div');
-    item.className = 'portfolio-item';
-    item.innerHTML = html;
-    if (p.url) item.onclick = () => window.open(p.url, '_blank');
-    if (cont) cont.appendChild(item);
+    if (cont) cont.appendChild(card);
   });
 }
 
@@ -651,50 +707,60 @@ async function loadPortfolio() {
 window.openAlbumView = function(albumId, title, desc) {
    currentAlbumFilter = albumId;
    searchQuery = '';
-   if(document.getElementById('search-input')) document.getElementById('search-input').value = '';
-   
-   // Navigate to home page first (so the posts feed is visible)
+   const searchInput = document.getElementById('search-input');
+   if (searchInput) searchInput.value = '';
+
    navigateTo('home');
-   
-   document.querySelector('.profile-hero').style.display = 'none';
-   document.getElementById('album-view-header').style.display = 'block';
+
+   const heroEl = document.querySelector('.profile-hero');
+   if (heroEl) heroEl.style.display = 'none';
+   const headerEl = document.getElementById('album-view-header');
+   if (headerEl) headerEl.style.display = 'block';
    document.getElementById('album-view-title').innerText = title;
    document.getElementById('album-view-desc').innerText = desc || '';
-   document.getElementById('feed-title').style.display = 'none';
-   
+   const feedTitle = document.getElementById('feed-title');
+   if (feedTitle) feedTitle.style.display = 'none';
+
    window.scrollTo({ top: 0, behavior: 'smooth' });
    loadPosts(true);
 };
 
 window.clearAlbumView = function() {
    currentAlbumFilter = null;
-   document.querySelector('.profile-hero').style.display = 'flex';
-   document.getElementById('album-view-header').style.display = 'none';
-   document.getElementById('feed-title').style.display = 'block';
+   const heroEl = document.querySelector('.profile-hero');
+   if (heroEl) heroEl.style.display = '';
+   const headerEl = document.getElementById('album-view-header');
+   if (headerEl) headerEl.style.display = 'none';
+   const feedTitle = document.getElementById('feed-title');
+   if (feedTitle) feedTitle.style.display = 'block';
    loadPosts(true);
 };
 
 async function loadAlbums() {
   const { data: albums } = await db.from('albums').select('*').order('created_at', { ascending: false });
   const cont = document.getElementById('albums-container-page');
-  if (!albums || albums.length === 0) return;
+  const emptyEl = document.getElementById('albums-empty');
+  if (!albums || albums.length === 0) {
+    if (emptyEl) emptyEl.style.display = 'flex';
+    return;
+  }
   if (cont) cont.innerHTML = '';
   albums.forEach(album => {
-      const html = `
-        <img src="${album.cover_url || ''}" class="album-cover" loading="lazy" />
-        <div class="album-info">
-            <div class="album-title">${album.title}</div>
-            ${album.description ? `<div class="album-desc">${album.description}</div>` : ''}
-        </div>
-      `;
-      if (cont) {
-          const a = document.createElement('a');
-          a.className = 'album-card';
-          a.href = 'javascript:void(0)';
-          a.onclick = (e) => { e.preventDefault(); openAlbumView(album.id, album.title, album.description); };
-          a.innerHTML = html;
-          cont.appendChild(a);
+    const card = document.createElement('div');
+    card.className = 'album-card';
+    card.setAttribute('role', 'button');
+    card.tabIndex = 0;
+    card.onclick = () => openAlbumView(album.id, album.title, album.description);
+    card.onkeydown = (e) => { if (e.key === 'Enter') card.click(); };
+    card.innerHTML = `
+      ${album.cover_url
+        ? `<img src="${album.cover_url}" alt="${album.title}" loading="lazy" />`
+        : `<div class="album-card-no-img"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></div>`
       }
+      <div class="album-card-overlay">
+        <div class="album-card-title">${album.title}</div>
+      </div>`;
+    if (cont) cont.appendChild(card);
   });
 }
 
@@ -980,41 +1046,55 @@ document.addEventListener('keydown', (e) => {
     }, { passive: true });
 })();
 
-// ── PAGE ROUTER ───────────────────────────────────
-const pages = ['home', 'albums', 'work'];
-const navIds = { home: 'nav-posts', albums: 'nav-albums', work: 'nav-work' };
+// ── PAGE ROUTER ─────────────────────────────────────
+const pages = ['home', 'albums', 'about', 'hobbies', 'work'];
+const navIds = {
+  home:    'nav-posts',
+  albums:  'nav-albums',
+  about:   'nav-about',
+  hobbies: 'nav-hobbies',
+  work:    'nav-work',
+};
+const mobIds = {
+  home:    'mob-posts',
+  albums:  'mob-albums',
+  about:   'mob-about',
+  hobbies: 'mob-hobbies',
+  work:    'mob-work',
+};
 
 let portfolioLoaded = false;
-let albumsLoaded = false;
+let albumsLoaded    = false;
 
 window.navigateTo = function(page) {
-  // Hide all pages
+  // Transition: deactivate current, activate new
   pages.forEach(p => {
     const el = document.getElementById(`page-${p}`);
-    if (el) {
-        el.style.display = 'none';
-        el.classList.remove('page-fade-in');
+    if (!el) return;
+    if (p === page) {
+      el.style.display = '';
+      requestAnimationFrame(() => {
+        el.classList.add('page-active');
+      });
+    } else {
+      el.classList.remove('page-active');
+      // hide after transition ends
+      el.style.display = 'none';
     }
   });
-  
-  // Show requested page with fade in
-  const target = document.getElementById(`page-${page}`);
-  if (target) {
-      target.style.display = '';
-      void target.offsetWidth; // force browser paint reflow
-      target.classList.add('page-fade-in');
-  }
 
-  // Update nav active state
+  // Update desktop nav active state
   pages.forEach(p => {
     const navEl = document.getElementById(navIds[p]);
-    if (navEl) navEl.classList.toggle('nav-link-active', p === page);
+    if (navEl) {
+      navEl.classList.toggle('nav-link-active', p === page);
+      navEl.setAttribute('aria-selected', p === page ? 'true' : 'false');
+    }
   });
 
   // Sync mobile bottom tab active states
-  const mobMap = { home: 'mob-posts', albums: 'mob-albums', work: 'mob-work' };
   pages.forEach(p => {
-    const mobEl = document.getElementById(mobMap[p]);
+    const mobEl = document.getElementById(mobIds[p]);
     if (mobEl) mobEl.classList.toggle('active', p === page);
   });
 
@@ -1029,7 +1109,8 @@ window.navigateTo = function(page) {
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  // Hide search bar on non-home pages (desktop only — mobile hides via CSS)
+
+  // Show/hide search bar on desktop
   const searchBar = document.getElementById('search-input');
   if (searchBar) searchBar.style.display = page === 'home' ? '' : 'none';
 };
@@ -1148,9 +1229,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// ── SWIPE NAVIGATION (mobile) ─────────────────────
+// ── SWIPE NAVIGATION (mobile) ─────────────────────────
 (function() {
-  const pageOrder = ['home', 'albums', 'work'];
+  const pageOrder = ['home', 'albums', 'about', 'hobbies', 'work'];
   let touchStartX = 0;
   let touchStartY = 0;
   let tracking = false;
@@ -1158,13 +1239,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function getCurrentPage() {
     return pageOrder.find(p => {
       const el = document.getElementById(`page-${p}`);
-      return el && el.style.display !== 'none';
+      return el && el.classList.contains('page-active');
     }) || 'home';
   }
 
   function isBlockedTarget(el) {
-    // Don't swipe-navigate if touching: images, videos, buttons, inputs,
-    // the post modal, or the bottom nav bar
     if (!el) return true;
     const tag = el.tagName?.toLowerCase();
     if (['img', 'video', 'input', 'textarea', 'button', 'a', 'select'].includes(tag)) return true;

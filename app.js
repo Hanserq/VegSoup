@@ -124,7 +124,53 @@ async function loadProfile() {
 
   // ── Apply appearance settings ────────────────────
   const root = document.documentElement;
-  if (data.accent_color) root.style.setProperty('--accent', data.accent_color);
+  if (data.accent_color) {
+    root.style.setProperty('--accent', data.accent_color);
+    // Compute RGB components for glow effects
+    const hex = data.accent_color.replace('#','');
+    const r = parseInt(hex.substring(0,2),16);
+    const g = parseInt(hex.substring(2,4),16);
+    const b = parseInt(hex.substring(4,6),16);
+    if (!isNaN(r)) {
+      root.style.setProperty('--accent-rgb', `${r},${g},${b}`);
+      root.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.10)`);
+      root.style.setProperty('--accent-glow', `0 0 24px rgba(${r},${g},${b},0.22)`);
+    }
+  }
+
+  // Apply theme options (card radius, bg preset, font pairing)
+  const opts = data.theme_options || {};
+  if (opts.card_radius) {
+    root.style.setProperty('--radius', opts.card_radius + 'px');
+    root.style.setProperty('--radius-lg', (parseInt(opts.card_radius) + 8) + 'px');
+    root.style.setProperty('--radius-xl', (parseInt(opts.card_radius) + 14) + 'px');
+  }
+  const bgPresets = {
+    dark: '#09090f', midnight: '#05050f', warm: '#0d0b07', black: '#000000'
+  };
+  if (opts.bg_preset && bgPresets[opts.bg_preset]) {
+    root.style.setProperty('--bg', bgPresets[opts.bg_preset]);
+  } else if (data.site_bg_color) {
+    root.style.setProperty('--bg', data.site_bg_color);
+  }
+
+  // Inject Outfit font if not already present and font_pair requires it
+  if (opts.font_pair === 'mono') {
+    root.style.setProperty('--font-display', `'JetBrains Mono', 'Fira Code', monospace`);
+  } else if (opts.font_pair === 'serif') {
+    root.style.setProperty('--font-display', `'Georgia', 'Times New Roman', serif`);
+  }
+
+  // Show mobile search button on narrow viewports
+  const mobileSearchBtn = document.getElementById('mobile-search-btn');
+  const desktopSearch = document.getElementById('search-input');
+  function syncSearchVisibility() {
+    const isMobile = window.innerWidth <= 768;
+    if (mobileSearchBtn) mobileSearchBtn.style.display = isMobile ? 'flex' : 'none';
+    if (desktopSearch) desktopSearch.style.display = isMobile ? 'none' : '';
+  }
+  syncSearchVisibility();
+  window.addEventListener('resize', syncSearchVisibility);
 
   if (data.feed_bg_url) {
     document.body.style.backgroundImage    = `url(${data.feed_bg_url})`;
@@ -134,7 +180,6 @@ async function loadProfile() {
     document.body.style.backgroundRepeat  = 'no-repeat';
   } else {
     document.body.style.backgroundImage = '';
-    if (data.site_bg_color) root.style.setProperty('--bg', data.site_bg_color);
   }
 
   const coverLayer = document.getElementById('profile-cover-layer');
@@ -1152,6 +1197,14 @@ window.toggleMobileSearch = function() {
     searchBtn.classList.add('active');
     // Focus the input after animation
     setTimeout(() => document.getElementById('mobile-search-input')?.focus(), 100);
+  }
+};
+
+window.openMobileSearch = function() {
+  const overlay = document.getElementById('mobile-search-overlay');
+  if (overlay) {
+    overlay.classList.add('open');
+    setTimeout(() => document.getElementById('mobile-search-input')?.focus(), 120);
   }
 };
 

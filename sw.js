@@ -36,32 +36,33 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch event - network first, falling back to cache
+// Fetch event - Stale-While-Revalidate for the local shell:
+// serve the cached copy instantly on repeat visits, refresh it from the
+// network in the background, and fall back to cache when offline.
 self.addEventListener('fetch', event => {
-  // Skip cross-origin requests (like Supabase API) and let them pass through normally.
-  // We only cache the local shell assets aggressively.
+  // Skip cross-origin requests (like Supabase API) and non-GET requests.
   if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
+  if (event.request.method !== 'GET') {
+    return;
+  }
 
-  // Network-First strategy for local HTML/JS/CSS to ensure updates are fetched immediately
-  // while falling back to cache if offline.
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // If the request is successful, update the cache
-        if (response && response.status === 200 && response.type === 'basic') {
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-        }
-        return response;
-      })
-      .catch(() => {
-        // Fallback to cache if network fails (Offline mode)
-        return caches.match(event.request);
-      })
+    caches.open(CACHE_NAME).then(async cache => {
+      const cached = await cache.match(event.request);
+
+      const network = fetch(event.request)
+        .then(response => {
+          // If the request is successful, update the cache in the background
+          if (response && response.status === 200 && response.type === 'basic') {
+            cache.put(event.request, response.clone());
+          }
+          return response;
+        })
+        .catch(() => cached); // Offline → fall back to cache
+
+      return cached || network;
+    })
   );
 });

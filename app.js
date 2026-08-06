@@ -551,8 +551,22 @@ document.addEventListener('DOMContentLoaded', () => {
 let pgEngine, pgRender, pgRunner;
 let pgTimerInterval;
 
-window.initPlayground = function() {
+// Lazy-load Matter.js only when the playground is actually activated,
+// so ~400 KB of physics engine never blocks initial page load.
+function loadMatter() {
+    if (window.Matter) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js';
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Failed to load Matter.js'));
+        document.head.appendChild(s);
+    });
+}
+
+window.initPlayground = async function() {
     if (playgroundActive) return;
+    try { await loadMatter(); } catch { showToast('Failed to load playground'); return; }
     playgroundActive = true;
 
     // Show Notification

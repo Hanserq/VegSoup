@@ -267,16 +267,13 @@ async function loadPosts(reset = false) {
     if (loader) loader.style.display = 'block';
   }
 
-  // Sort pinned first, then newest
-  let query = db.from('posts').select('*')
-    .eq('published', true)
-    .is('deleted_at', null)
-    .order('is_pinned', { ascending: false })
-    .order('created_at', { ascending: false });
-
-  if (currentAlbumFilter) query = query.eq('album_id', currentAlbumFilter);
-
-  const { data: posts, error } = await query.range(postPage * POSTS_PER_PAGE, (postPage + 1) * POSTS_PER_PAGE - 1);
+  // Sort pinned first, then newest — server-side pagination via the get_feed
+  // RPC (identical filters/ordering to the old query, no full-row download)
+  const { data: posts, error } = await db.rpc('get_feed', {
+    p_album_id: currentAlbumFilter || null,
+    p_limit: POSTS_PER_PAGE,
+    p_offset: postPage * POSTS_PER_PAGE,
+  });
   fetchingPosts = false;
 
   if (error || !posts || posts.length === 0) {
